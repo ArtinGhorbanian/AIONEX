@@ -607,4 +607,5 @@ document.addEventListener('DOMContentLoaded', () => {
             if(question && context) fetchAnswer(question, context);
         }
     });
+
 });
