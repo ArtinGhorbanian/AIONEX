@@ -1,0 +1,21 @@
+# --- Core Web Framework ---
+Flask==3.0.0
+Flask-Cors==4.0.0
+
+# --- Web Scraping & HTTP Requests ---
+requests==2.31.0
+beautifulsoup4==4.12.3
+selenium==4.14.0
+webdriver-manager==4.0.1
+
+# --- NLP & Machine Learning ---
+transformers==4.34.0
+# Transformers needs a backend. Choose one of the following:
+tensorflow==2.14.0
+# or torch==2.1.0 (if you prefer PyTorch)
+
+# --- Web Search ---
+google==3.0.0
+
+# --- Production Web Server ---
+waitress==2.1.2
