@@ -431,4 +431,5 @@ input:checked + .slider:before { transform: translateX(26px); background-color: 
 .qa-form { display: flex; gap: 10px; margin-top: 10px; }
 .qa-form input { flex-grow: 1; background: var(--bg-color-surface); border: 1px solid var(--border-color); border-radius: 5px; padding: 10px; color: var(--font-color-main); font-family: 'Exo 2', sans-serif; }
 .qa-form button { background: var(--accent-color); border: none; color: var(--bg-color-deep); padding: 10px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; transition: opacity 0.3s; }
+
 .qa-answer { margin-top: 15px; background: var(--bg-color-deep); padding: 15px; border-radius: 5px; border-left: 3px solid var(--accent-color); min-height: 20px; }
