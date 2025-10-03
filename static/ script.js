@@ -1,14 +1,14 @@
 /* ============================================= */
 /* AIONEX TEAM - Advanced JS Logic               */
-/* Version: 7.5 (Humanized Refactor)             */
-/* Author: [Your Name/Team Name]                 */
+/* Version: 8.0 (Final Polish)                   */
+/* Author: AIONEX                                */
 /* ============================================= */
 
 document.addEventListener('DOMContentLoaded', () => {
 
     // --- 1. SETUP & STATE MANAGEMENT ---
 
-    gsap.registerPlugin(); // Initialize GSAP
+    gsap.registerPlugin(); // Initialize GSAP for animations
     const API_BASE_URL = 'http://127.0.0.1:5000/api';
     
     // Application state variables
@@ -16,6 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let searchHistory = JSON.parse(localStorage.getItem('aionexHistory')) || [];
     let savedArticles = JSON.parse(localStorage.getItem('aionexSaves')) || [];
     let conversationId = `conv_${Date.now()}_${Math.random()}`; // Unique ID for this session's chat
+    let currentArticleData = null; // Holds the original, untranslated data of the currently viewed article summary
 
     // --- 2. DOM ELEMENT SELECTION ---
     // Grouping DOM queries makes it easier to find elements later.
@@ -25,6 +26,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const introVideo = document.getElementById('intro-video');
     const contentArea = document.getElementById('content-area');
     const cursorGlow = document.getElementById('cursor-glow');
+    const welcomePopup = document.getElementById('welcome-popup');
+    const closePopupBtn = document.getElementById('close-popup-btn');
 
     // Search & Filter
     const searchInput = document.getElementById('searchInput');
@@ -50,7 +53,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const chatInputForm = document.getElementById('chat-input-form');
     const chatInput = document.getElementById('chat-input');
     const webSearchCheckbox = document.getElementById('web-search-checkbox');
-
+    
+    // Language Selector
+    const languageSelector = document.getElementById('language-selector');
 
     // --- 3. CORE UI, ANIMATIONS & SPEECH SYNTHESIS ---
 
@@ -61,13 +66,21 @@ document.addEventListener('DOMContentLoaded', () => {
         const tl = gsap.timeline();
         tl.to(splashScreen, { opacity: 0, duration: 1.5, ease: 'power2.inOut' })
           .set(splashScreen, { display: 'none' })
-          .set("#hamburger-menu, #main-header, #search-container, #ai-chat-button", { visibility: 'visible' })
-          .to("#hamburger-menu, #ai-chat-button", { opacity: 1, duration: 1, ease: "power3.out" }, "-=0.5")
+          .set("#hamburger-menu, #main-header, #search-container, #ai-chat-button, #language-selector-container", { visibility: 'visible' })
+          .to("#hamburger-menu, #ai-chat-button, #language-selector-container", { opacity: 1, duration: 1, ease: "power3.out" }, "-=0.5")
           .to("#main-header", { opacity: 1, y: 0, duration: 1, ease: "power3.out" }, "-=1")
-          .to("#search-container", { opacity: 1, y: 0, duration: 1, ease: "power3.out" }, "-=0.7");
+          .to("#search-container", { opacity: 1, y: 0, duration: 1, ease: "power3.out" }, "-=0.7")
+          .to(welcomePopup, { 
+              delay: 1, 
+              opacity: 1, 
+              y: 0, 
+              duration: 0.5, 
+              ease: "power3.out",
+              onStart: () => welcomePopup.classList.remove('hidden')
+          });
     };
 
-    // Attempt to play the intro video, but have a fallback if it fails.
+    // Attempt to play the intro video, with a fallback if it fails (e.g., on mobile).
     try {
         introVideo.play().catch(() => startMainApplication());
         introVideo.addEventListener('ended', startMainApplication);
@@ -128,8 +141,21 @@ document.addEventListener('DOMContentLoaded', () => {
     const synth = window.speechSynthesis;
     let voices = [];
     function loadVoices() { voices = synth.getVoices(); }
-    if (synth.onvoiceschanged !== undefined) { synth.onvoiceschanged = loadVoices; }
-    loadVoices();
+    // The 'voiceschanged' event is crucial. Some browsers load voices asynchronously.
+    if (synth.onvoiceschanged !== undefined) {
+        synth.onvoiceschanged = loadVoices;
+    }
+    setTimeout(loadVoices, 200); // Also poll just in case, for older browsers.
+    
+    /**
+     * Checks if a specific language is supported by the browser's TTS engine.
+     * @param {string} langCode - The language code (e.g., 'en', 'es', 'zh').
+     * @returns {boolean} - True if a voice for the language is available.
+     */
+    const isLangSupportedForTTS = (langCode) => {
+        if (!voices || voices.length === 0) loadVoices(); // Re-check if voices aren't loaded yet
+        return voices.some(v => v.lang.startsWith(langCode));
+    };
 
     /**
      * Speaks a given text using the browser's Speech Synthesis API.
@@ -140,27 +166,124 @@ document.addEventListener('DOMContentLoaded', () => {
     const speakText = (textToSpeak, onStart, onEnd) => {
         if (synth.speaking) {
             synth.cancel();
+            if(onEnd) onEnd(); // Ensure UI resets if speaking is cancelled.
             return;
         }
         const utterance = new SpeechSynthesisUtterance(textToSpeak);
         
         // Simple regex to guess the language for better voice selection.
-        const langCode = textToSpeak.match(/[а-яА-Я]/) ? 'ru' : 
-                         textToSpeak.match(/[一-龠]/) ? 'zh' : 
-                         textToSpeak.match(/[ا-ی]/) ? 'fa' : 'en';
+        const langCode = textToSpeak.match(/[一-龠]/) ? 'zh' : 
+                         textToSpeak.match(/[áéíóúÁÉÍÓÚñÑ]/) ? 'es' : 
+                         textToSpeak.match(/[àèéìòùÀÈÉÌÒÙ]/) ? 'fr' : 
+                         textToSpeak.match(/[\u0900-\u097F]/) ? 'hi' : 'en';
         
         utterance.lang = langCode;
-        const voice = voices.find(v => v.lang.startsWith(langCode));
-        if (voice) utterance.voice = voice;
+        
+        // Try to find a high-quality, language-specific voice
+        let bestVoice = voices.find(v => v.lang.startsWith(langCode) && (v.name.includes('Google') || v.name.includes('Natural'))) ||
+                        voices.find(v => v.lang.startsWith(langCode) && v.localService) ||
+                        voices.find(v => v.lang.startsWith(langCode));
+        
+        if (bestVoice) utterance.voice = bestVoice;
 
         utterance.onstart = onStart;
         utterance.onend = onEnd;
-        utterance.onerror = onEnd; // Treat error as end
+        utterance.onerror = (e) => {
+            console.error("Speech Synthesis Error:", e);
+            onEnd(); // Treat error as end
+        };
 
         synth.speak(utterance);
     };
 
-    // --- 4. TEMPLATE & RENDER FUNCTIONS ---
+    // --- 4. INTERNATIONALIZATION (i18n) ---
+    const translations = {
+        en: {
+            mainHeader: "AIONEX", searchPlaceholder: "Search for articles...", dashboardTitle: "Dashboard",
+            historyTab: "History", savesTab: "Saves", sortByLabel: "Sort by:", sortBestMatch: "Best Match",
+            sortNewest: "Newest", sortOldest: "Oldest", sortTitleAZ: "Title (A-Z)", chatTitle: "AIONEX AI Assistant",
+            chatPlaceholder: "Ask about space and NASA...", webSearchLabel: "Web Search",
+            welcomePopupBody: "Hello! I'm AIONEX, your guide to space and NASA. How can I help you explore the cosmos today?",
+            analysisMetrics: "Article Metrics", citations: "Citations", openAccess: "Open Access", recency: "Recency",
+            journalActivity: "Journal Activity", authorActivity: "Author Activity", sentimentAnalysis: "Sentiment Analysis",
+            aiSummary: "AI Summary", askQuestion: "Ask a Question", askPlaceholder: "Ask about the abstract...",
+            askButton: "Ask", answerPlaceholder: "The answer will appear here.", originalAbstract: "Original Abstract",
+            readButton: "Read", saveButton: "Save Article", unsaveButton: "Unsave",
+        },
+        zh: {
+            mainHeader: "AIONEX", searchPlaceholder: "搜索文章...", dashboardTitle: "仪表板",
+            historyTab: "历史记录", savesTab: "已保存", sortByLabel: "排序方式:", sortBestMatch: "最佳匹配",
+            sortNewest: "最新", sortOldest: "最旧", sortTitleAZ: "标题 (A-Z)", chatTitle: "AIONEX 人工智能助手",
+            chatPlaceholder: "询问有关太空和NASA的问题...", webSearchLabel: "网络搜索",
+            welcomePopupBody: "你好！我是 AIONEX，你的太空和 NASA 指南。今天我能如何帮助你探索宇宙？",
+            analysisMetrics: "文章指标", citations: "引用次数", openAccess: "开放获取", recency: "时效性",
+            journalActivity: "期刊活跃度", authorActivity: "作者活跃度", sentimentAnalysis: "情感分析",
+            aiSummary: "AI 摘要", askQuestion: "提问", askPlaceholder: "就摘要提问...",
+            askButton: "提问", answerPlaceholder: "答案将显示在这里。", originalAbstract: "原文摘要",
+            readButton: "朗读", saveButton: "保存文章", unsaveButton: "取消保存",
+        },
+        es: {
+            mainHeader: "AIONEX", searchPlaceholder: "Buscar artículos...", dashboardTitle: "Panel",
+            historyTab: "Historial", savesTab: "Guardados", sortByLabel: "Ordenar por:", sortBestMatch: "Mejor resultado",
+            sortNewest: "Más reciente", sortOldest: "Más antiguo", sortTitleAZ: "Título (A-Z)", chatTitle: "Asistente de IA de AIONEX",
+            chatPlaceholder: "Pregunta sobre el espacio y la NASA...", webSearchLabel: "Búsqueda Web",
+            welcomePopupBody: "¡Hola! Soy AIONEX, tu guía sobre el espacio y la NASA. ¿Cómo puedo ayudarte a explorar el cosmos hoy?",
+            analysisMetrics: "Métricas del Artículo", citations: "Citas", openAccess: "Acceso Abierto", recency: "Reciente",
+            journalActivity: "Actividad de la Revista", authorActivity: "Actividad del Autor", sentimentAnalysis: "Análisis de Sentimiento",
+            aiSummary: "Resumen de IA", askQuestion: "Haz una Pregunta", askPlaceholder: "Pregunta sobre el resumen...",
+            askButton: "Preguntar", answerPlaceholder: "La respuesta aparecerá aquí.", originalAbstract: "Resumen Original",
+            readButton: "Leer", saveButton: "Guardar Artículo", unsaveButton: "No Guardar",
+        },
+        hi: {
+            mainHeader: "AIONEX", searchPlaceholder: "लेख खोजें...", dashboardTitle: "डैशबोर्ड",
+            historyTab: "इतिहास", savesTab: "सहेजे गए", sortByLabel: "इसके अनुसार क्रमबद्ध करें:", sortBestMatch: "सर्वश्रेष्ठ मिलान",
+            sortNewest: "नवीनतम", sortOldest: "सबसे पुराना", sortTitleAZ: "शीर्षक (A-Z)", chatTitle: "AIONEX एआई सहायक",
+            chatPlaceholder: "अंतरिक्ष और नासा के बारे में पूछें...", webSearchLabel: "वेब खोज",
+            welcomePopupBody: "नमस्ते! मैं AIONEX हूँ, आपका अंतरिक्ष और नासा का गाइड। मैं आज ब्रह्मांड का अन्वेषण करने में आपकी कैसे मदद कर सकता हूँ?",
+            analysisMetrics: "लेख मेट्रिक्स", citations: "उद्धरण", openAccess: "ओपन एक्सेस", recency: "नवीनता",
+            journalActivity: "जर्नल गतिविधि", authorActivity: "लेखक गतिविधि", sentimentAnalysis: "भावना विश्लेषण",
+            aiSummary: "एआई सारांश", askQuestion: "एक सवाल पूछें", askPlaceholder: "सार के बारे में पूछें...",
+            askButton: "पूछें", answerPlaceholder: "उत्तर यहाँ दिखाई देगा।", originalAbstract: "मूल सार",
+            readButton: "पढ़ें", saveButton: "लेख सहेजें", unsaveButton: "असंरक्षित करें",
+        },
+        fr: {
+            mainHeader: "AIONEX", searchPlaceholder: "Rechercher des articles...", dashboardTitle: "Tableau de bord",
+            historyTab: "Historique", savesTab: "Enregistrements", sortByLabel: "Trier par :", sortBestMatch: "Meilleure correspondance",
+            sortNewest: "Le plus récent", sortOldest: "Le plus ancien", sortTitleAZ: "Titre (A-Z)", chatTitle: "Assistant IA AIONEX",
+            chatPlaceholder: "Posez des questions sur l'espace et la NASA...", webSearchLabel: "Recherche Web",
+            welcomePopupBody: "Bonjour ! Je suis AIONEX, votre guide sur l'espace et la NASA. Comment puis-je vous aider à explorer le cosmos aujourd'hui ?",
+            analysisMetrics: "Métrique de l'article", citations: "Citations", openAccess: "Accès Ouvert", recency: "Récence",
+            journalActivity: "Activité du journal", authorActivity: "Activité de l'auteur", sentimentAnalysis: "Analyse des sentiments",
+            aiSummary: "Résumé par IA", askQuestion: "Poser une question", askPlaceholder: "Posez une question sur le résumé...",
+            askButton: "Demander", answerPlaceholder: "La réponse apparaîtra ici.", originalAbstract: "Résumé original",
+            readButton: "Lire", saveButton: "Sauvegarder l'article", unsaveButton: "Désenregistrer",
+        }
+    };
+    
+    /**
+     * Applies the selected language strings to all relevant DOM elements.
+     * @param {string} lang - The language code (e.g., 'en', 'zh').
+     */
+    const setLanguage = async (lang) => {
+        const langStrings = translations[lang] || translations.en;
+        document.querySelectorAll('[data-i18n]').forEach(el => {
+            const key = el.dataset.i18n;
+            if (langStrings[key]) el.textContent = langStrings[key];
+        });
+        document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+            const key = el.dataset.i18nPlaceholder;
+            if (langStrings[key]) el.placeholder = langStrings[key];
+        });
+        localStorage.setItem('aionexLanguage', lang);
+        
+        // If an article is currently displayed, re-render it with the new language.
+        // This makes the UI feel dynamic.
+        if (currentArticleData) {
+            await renderSummaryView();
+        }
+    };
+
+    // --- 5. TEMPLATE & RENDER FUNCTIONS ---
     // These functions generate HTML strings to be injected into the DOM.
 
     const createLoader = () => `<div class="status-message">Navigating the data cosmos...</div>`;
@@ -169,11 +292,74 @@ document.addEventListener('DOMContentLoaded', () => {
         <div class="result-card" data-link="${article.link}" data-title="${article.title}">
             <h4>${article.title}</h4>
         </div>`).join('');
+
+    /**
+     * Generates a plausible but random set of analysis data for an article.
+     * @returns {object} An object with scores for different metrics.
+     */
+    const generateAnalysisData = () => {
+        const getScore = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+        return {
+            citations: getScore(30, 95), openAccess: Math.random() > 0.3 ? 100 : 10,
+            recency: getScore(20, 98), journalActivity: getScore(40, 85),
+            authorActivity: getScore(35, 90)
+        };
+    };
+    
+    /**
+     * Determines the color and label for a given score.
+     * @param {number} score - The score from 0 to 100.
+     * @returns {{color: string, text: string}} An object with color and text label.
+     */
+    const getScoreCategory = (score) => {
+        if (score <= 25) return { color: 'var(--graph-bar-low)', text: 'Low' };
+        if (score <= 50) return { color: 'var(--graph-bar-medium)', text: 'Medium' };
+        if (score <= 75) return { color: 'var(--graph-bar-high)', text: 'High' };
+        return { color: 'var(--graph-bar-very-high)', text: 'Very High' };
+    };
+
+    /**
+     * Creates the HTML for the analysis graphs section.
+     * @param {object} analysisData - The generated data from generateAnalysisData.
+     * @param {object} langStrings - The current language translation object.
+     * @returns {string} The HTML string for the graphs.
+     */
+    const createGraphsHTML = (analysisData, langStrings) => {
+        const metrics = {
+            citations: analysisData.citations, openAccess: analysisData.openAccess,
+            recency: analysisData.recency, journalActivity: analysisData.journalActivity,
+            authorActivity: analysisData.authorActivity
+        };
+
+        let graphsHTML = `<div class="analysis-graphs"><h3><i class="fas fa-chart-bar"></i> ${langStrings.analysisMetrics}</h3>`;
+
+        for (const [key, score] of Object.entries(metrics)) {
+            const category = getScoreCategory(score);
+            graphsHTML += `
+                <div class="graph-item">
+                    <div class="graph-label">
+                        <span data-i18n="${key}">${langStrings[key]}</span>
+                        <span style="color: ${category.color}">${category.text}</span>
+                    </div>
+                    <div class="graph-bar-bg">
+                        <div class="graph-bar" style="width: ${score}%; background-color: ${category.color};"></div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        graphsHTML += `<div class="graph-scale"><span>Low</span><span>Medium</span><span>High</span><span>Very High</span></div></div>`;
+        return graphsHTML;
+    };
     
     const createSummaryHTML = data => {
+        const lang = languageSelector.value || 'en';
+        const langStrings = translations[lang] || translations.en;
         const isSaved = savedArticles.some(article => article.link === data.link);
-        const saveButtonText = isSaved ? 'Unsave' : 'Save Article';
+        const saveButtonText = isSaved ? langStrings.unsaveButton : langStrings.saveButton;
         const saveButtonClass = isSaved ? 'saved' : '';
+        const analysisData = generateAnalysisData(); // Generate fresh data for each view
+
         return `
         <div class="summary-card" data-abstract="${encodeURIComponent(data.abstract)}">
             <div class="summary-header">
@@ -182,25 +368,26 @@ document.addEventListener('DOMContentLoaded', () => {
                     <i class="fas ${isSaved ? 'fa-trash-alt' : 'fa-save'}"></i> ${saveButtonText}
                 </button>
             </div>
-            <h3><i class="fas fa-poll"></i> Sentiment Analysis</h3>
+            ${createGraphsHTML(analysisData, langStrings)}
+            <h3><i class="fas fa-poll"></i> ${langStrings.sentimentAnalysis}</h3>
             <p><span class="sentiment-badge ${data.sentiment || 'UNKNOWN'}">${data.sentiment || 'UNKNOWN'}</span></p>
-            <h3><i class="fas fa-brain"></i> AI Summary <button id="read-aloud-btn" data-summary="${encodeURIComponent(data.summary)}"><i class="fas fa-play"></i> Read</button></h3>
+            <h3><i class="fas fa-brain"></i> ${langStrings.aiSummary} <button id="read-aloud-btn" data-summary="${encodeURIComponent(data.summary)}"><i class="fas fa-play"></i> ${langStrings.readButton}</button></h3>
             <p>${data.summary || 'Not available.'}</p>
             <div class="qa-section">
-                <h3><i class="fas fa-question-circle"></i> Ask a Question</h3>
+                <h3><i class="fas fa-question-circle"></i> ${langStrings.askQuestion}</h3>
                 <form class="qa-form" id="qa-form">
-                    <input type="text" id="qa-input" placeholder="Ask about the abstract..." required>
-                    <button type="submit">Ask</button>
+                    <input type="text" id="qa-input" placeholder="${langStrings.askPlaceholder}" required>
+                    <button type="submit">${langStrings.askButton}</button>
                 </form>
-                <div class="qa-answer" id="qa-answer-box">The answer will appear here.</div>
+                <div class="qa-answer" id="qa-answer-box">${langStrings.answerPlaceholder}</div>
             </div>
-            <h3><i class="fas fa-file-alt"></i> Original Abstract</h3>
+            <h3><i class="fas fa-file-alt"></i> ${langStrings.originalAbstract}</h3>
             <p>${data.abstract}</p>
         </div>`;
     }
 
     /**
-     * Renders HTML content into the main content area with a fade-in animation.
+     * Renders the main content area with a fade-in animation.
      * @param {string} html - The HTML string to render.
      */
     const renderContent = (html) => {
@@ -211,7 +398,32 @@ document.addEventListener('DOMContentLoaded', () => {
         );
     };
 
-    // --- 5. AI CHAT FUNCTIONS ---
+    /**
+     * Renders the summary view, translating content if necessary.
+     */
+    const renderSummaryView = async () => {
+        if (!currentArticleData) return;
+
+        const lang = languageSelector.value;
+        // Create a deep copy to avoid modifying the original untranslated data
+        let displayData = JSON.parse(JSON.stringify(currentArticleData));
+
+        if (lang !== 'en') {
+            renderContent(createLoader()); // Show loader during translation
+            const [translatedTitle, translatedSummary, translatedAbstract] = await Promise.all([
+                translateText(displayData.title, lang),
+                translateText(displayData.summary, lang),
+                translateText(displayData.abstract, lang)
+            ]);
+            displayData.title = translatedTitle;
+            displayData.summary = translatedSummary;
+            displayData.abstract = translatedAbstract;
+        }
+        
+        renderContent(createSummaryHTML(displayData));
+    };
+    
+    // --- 6. AI CHAT FUNCTIONS ---
 
     /**
      * Shows or hides the AI chat modal with animations.
@@ -226,7 +438,9 @@ document.addEventListener('DOMContentLoaded', () => {
             chatInput.focus();
             // Add a welcome message if the chat is empty
             if (chatMessages.children.length === 0) {
-                addMessageToChat({reply: "Hello! I'm AIONEX, your guide to space and NASA. How can I help you explore the cosmos today?"}, 'ai');
+                const currentLang = localStorage.getItem('aionexLanguage') || 'en';
+                const welcomeMsg = translations[currentLang].welcomePopupBody;
+                addMessageToChat({reply: welcomeMsg}, 'ai');
             }
         } else {
             synth.cancel(); // Stop any speech when closing the modal
@@ -245,14 +459,16 @@ document.addEventListener('DOMContentLoaded', () => {
         const messageWrapper = document.createElement('div');
         messageWrapper.className = `chat-message ${sender}`;
         
-        let contentHTML;
         if (isLoading) {
             messageWrapper.innerHTML = `
-                <div class="message-avatar">AI</div>
+                <div class="message-avatar"><img src="static/generative.png" alt="AI Avatar"></div>
                 <div class="message-bubble loading"><div class="dot-flashing"></div></div>
             `;
         } else {
-            const avatar = sender === 'ai' ? 'AI' : '<i class="fas fa-user"></i>';
+            const avatar = sender === 'ai' 
+                ? '<img src="static/generative.png" alt="AI Avatar">' 
+                : '<img src="static/userlogo.jpg" alt="User Avatar">';
+
             let sourcesHTML = '';
             if (data.sources && data.sources.length > 0) {
                 const sourceLinks = data.sources.map(src => `<li><a href="${src}" target="_blank" rel="noopener noreferrer">${src}</a></li>`).join('');
@@ -265,14 +481,25 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>`;
             }
 
-            const actionsHTML = sender === 'ai' ? `
-                <div class="message-actions">
-                    <button class="message-action-btn tts-btn" title="Read aloud"><img src="static/speaker-filled-audio-tool.png" alt="Read"></button>
-                    <button class="message-action-btn tts-stop-btn hidden" title="Stop">&times;</button>
-                    <button class="message-action-btn copy-btn" title="Copy text"><img src="static/copy.png" alt="Copy"></button>
-                </div>` : '';
+            const langCode = data.reply.match(/[一-龠]/) ? 'zh' : 
+                             data.reply.match(/[áéíóúÁÉÍÓÚñÑ]/) ? 'es' :
+                             data.reply.match(/[àèéìòùÀÈÉÌÒÙ]/) ? 'fr' : 
+                             data.reply.match(/[\u0900-\u097F]/) ? 'hi' : 'en';
 
-            contentHTML = `
+            let actionsHTML = '';
+            if (sender === 'ai') {
+                const ttsButton = isLangSupportedForTTS(langCode) ?
+                    `<button class="message-action-btn tts-btn" title="Read aloud"><img src="static/speaker-filled-audio-tool.png" alt="Read"></button>
+                     <button class="message-action-btn tts-stop-btn hidden" title="Stop">&times;</button>` : '';
+
+                actionsHTML = `
+                <div class="message-actions">
+                    ${ttsButton}
+                    <button class="message-action-btn copy-btn" title="Copy text"><img src="static/copy.png" alt="Copy"></button>
+                </div>`;
+            }
+
+            messageWrapper.innerHTML = `
                 <div class="message-avatar">${avatar}</div>
                 <div class="message-content">
                     <div class="message-bubble">
@@ -281,7 +508,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     ${actionsHTML}
                     ${sourcesHTML}
                 </div>`;
-            messageWrapper.innerHTML = contentHTML;
         }
         chatMessages.appendChild(messageWrapper);
         chatMessages.scrollTop = chatMessages.scrollHeight; // Auto-scroll to bottom
@@ -311,7 +537,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 })
             });
             if (!response.ok) {
-                // Try to parse the error from the server, otherwise throw a generic one
                 const errorData = await response.json().catch(() => ({ reply: 'Network response was not ok.' }));
                 throw new Error(errorData.reply);
             }
@@ -328,8 +553,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-
-    // --- 6. DASHBOARD & LOCALSTORAGE FUNCTIONS ---
+    // --- 7. DASHBOARD & LOCALSTORAGE FUNCTIONS ---
 
     const updateHistory = (query) => {
         if (!searchHistory.includes(query)) {
@@ -350,7 +574,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <li>
                 <span class="history-item-query" data-query="${item}">${item}</span>
                 <button class="remove-history-btn" data-query="${item}" title="Remove">&times;</button>
-            </li>`).join('') || '<li>No history yet.</li>';
+            </li>`).join('') || `<li>No history yet.</li>`;
     };
 
     const saveArticle = (article) => {
@@ -372,7 +596,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <span class="saved-item-title">${article.title}</span>
                 <button class="remove-save-btn" data-link="${article.link}" title="Remove"><i class="fas fa-trash"></i></button>
             </li>
-        `).join('') || '<li>No saved articles.</li>';
+        `).join('') || `<li>No saved articles.</li>`;
     };
 
     /**
@@ -410,14 +634,39 @@ document.addEventListener('DOMContentLoaded', () => {
         renderContent(createResultsHTML(sortedResults));
     };
 
-    // --- 7. API CALLS ---
+    // --- 8. API CALLS ---
 
+    /**
+     * (Simulated) Translates text using the backend.
+     * @param {string} text - The text to translate.
+     * @param {string} lang - The target language code.
+     * @returns {Promise<string>} The translated text.
+     */
+    const translateText = async (text, lang) => {
+        if (!text || lang === 'en') return text;
+        try {
+            const response = await fetch(`${API_BASE_URL}/translate`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text, lang })
+            });
+            if (!response.ok) return `${text} [translation failed]`;
+            const data = await response.json();
+            return data.translatedText;
+        } catch (error) {
+            console.error("Translation API error:", error);
+            return `${text} [translation failed]`;
+        }
+    };
+    
     /**
      * Performs a search via the backend API.
      * @param {string} query - The search query.
      */
     const handleSearch = async (query) => {
         if (!query) return;
+        currentArticleData = null; // Clear current article state on new search
+        contentArea.innerHTML = ''; // Clear view immediately
         searchInput.value = query;
         togglePanel(false);
         updateHistory(query);
@@ -440,7 +689,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     /**
-     * Fetches analysis for a specific article URL.
+     * Fetches analysis for a specific article URL and translates it.
      * @param {string} url - The URL of the article to analyze.
      */
     const fetchAnalysis = async (url) => {
@@ -450,8 +699,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const response = await fetch(`${API_BASE_URL}/analyze`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url }) });
             if (!response.ok) throw new Error((await response.json()).error || 'Server error.');
             const data = await response.json();
-            renderContent(createSummaryHTML(data));
+            currentArticleData = data; // Store original, untranslated data
+            await renderSummaryView(); // Render view, which will handle translation
         } catch (error) {
+            currentArticleData = null;
             renderContent(createError(error.message));
         }
     };
@@ -468,14 +719,28 @@ document.addEventListener('DOMContentLoaded', () => {
             const response = await fetch(`${API_BASE_URL}/ask`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ question, context }) });
             if (!response.ok) throw new Error((await response.json()).error || 'Server error.');
             const data = await response.json();
-            answerBox.textContent = data.answer || "Couldn't find a clear answer in the text.";
+            
+            const lang = languageSelector.value;
+            let answer = data.answer || "Couldn't find a clear answer in the text.";
+            if (lang !== 'en') {
+                answer = await translateText(answer, lang);
+            }
+            answerBox.textContent = answer;
         } catch (error) {
             answerBox.textContent = `Error: ${error.message}`;
         }
     };
     
-    // --- 8. EVENT LISTENERS ---
+    // --- 9. EVENT LISTENERS ---
     // Centralized place for all event bindings.
+
+    // Language listener
+    languageSelector.addEventListener('change', (e) => setLanguage(e.target.value));
+
+    // Welcome popup listener
+    closePopupBtn.addEventListener('click', () => {
+        gsap.to(welcomePopup, { opacity: 0, y: 20, duration: 0.3, onComplete: () => welcomePopup.classList.add('hidden') });
+    });
 
     // Chat listeners
     aiChatButton.addEventListener('click', () => toggleChatModal(true));
@@ -577,13 +842,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const saveBtn = event.target.closest('#save-article-btn');
         if (saveBtn) {
             const article = { title: saveBtn.dataset.title, link: saveBtn.dataset.link };
+            const lang = languageSelector.value || 'en';
+            const langStrings = translations[lang] || translations.en;
             if (saveBtn.classList.contains('saved')) {
                 removeArticle(article.link);
-                saveBtn.innerHTML = `<i class="fas fa-save"></i> Save Article`;
+                saveBtn.innerHTML = `<i class="fas fa-save"></i> ${langStrings.saveButton}`;
                 saveBtn.classList.remove('saved');
             } else {
                 saveArticle(article);
-                saveBtn.innerHTML = `<i class="fas fa-trash-alt"></i> Unsave`;
+                saveBtn.innerHTML = `<i class="fas fa-trash-alt"></i> ${langStrings.unsaveButton}`;
                 saveBtn.classList.add('saved');
             }
             return;
@@ -603,9 +870,15 @@ document.addEventListener('DOMContentLoaded', () => {
         if (event.target.id === 'qa-form') {
             event.preventDefault();
             const question = document.getElementById('qa-input').value.trim();
-            const context = decodeURIComponent(event.target.closest('.summary-card').dataset.abstract);
+            // Always use original untranslated abstract for the Q&A model
+            const context = currentArticleData ? currentArticleData.abstract : ''; 
             if(question && context) fetchAnswer(question, context);
         }
     });
 
+    // --- 10. INITIALIZATION ---
+    // Load the user's preferred language on startup.
+    const savedLang = localStorage.getItem('aionexLanguage') || 'en';
+    languageSelector.value = savedLang;
+    setLanguage(savedLang);
 });
