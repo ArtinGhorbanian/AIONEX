@@ -1,21 +1,28 @@
-# --- Core Web Framework ---
-Flask==3.0.0
-Flask-Cors==4.0.0
+# ==============================================================================
+#  AIONEX Project Dependencies
+# ==============================================================================
+# To install all required packages, run the following command in your terminal:
+# pip install -r requirements.txt
+# ------------------------------------------------------------------------------
 
-# --- Web Scraping & HTTP Requests ---
-requests==2.31.0
-beautifulsoup4==4.12.3
-selenium==4.14.0
-webdriver-manager==4.0.1
+# -- Web Framework & Server --
+# Core components for running the web application and handling HTTP requests.
+Flask~=3.0.0
+Flask-Cors~=4.0.0
+waitress~=2.1.2         # Production-ready WSGI server for a clean terminal output.
 
-# --- NLP & Machine Learning ---
-transformers==4.34.0
-# Transformers needs a backend. Choose one of the following:
-tensorflow==2.14.0
-# or torch==2.1.0 (if you prefer PyTorch)
+# -- Data Scraping & Web Automation --
+# Libraries for fetching and parsing web content.
+requests~=2.31.0        # For making standard HTTP requests.
+beautifulsoup4~=4.12.2    # For parsing HTML and XML documents.
+selenium~=4.14.0          # For automating web browser interaction (used for PubMed).
+webdriver-manager~=4.0.1  # To automatically manage browser drivers for Selenium.
 
-# --- Web Search ---
-google==3.0.0
+# -- NLP & Machine Learning --
+# Hugging Face ecosystem for NLP tasks.
+transformers~=4.35.0
+tensorflow~=2.16.1      # Backend for the transformer models. Using a specific version for stability.
 
-# --- Production Web Server ---
-waitress==2.1.2
+# -- API Clients & Utilities --
+# Third-party services and helper libraries.
+googlesearch-python~=1.2.3 # Simple library for performing Google searches.
