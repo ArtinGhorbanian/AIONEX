@@ -4,7 +4,19 @@
 # To install all required packages, run the following command in your terminal:
 # pip install -r requirements.txt
 # ------------------------------------------------------------------------------
+# -- NLP & Machine Learning --
+transformers~=4.35.0
+# Use ONE backend. If you want PyTorch:
+torch>=2.2,<3
 
+# (Optional) If you switch to PyTorch, you can REMOVE TensorFlow:
+# # -- NLP & Machine Learning --
+transformers~=4.35.0
+# Use ONE backend. If you want PyTorch:
+torch>=2.2,<3
+
+# (Optional) If you switch to PyTorch, you can REMOVE TensorFlow:
+# tensorflow~=2.16.1
 # -- Web Framework & Server --
 # Core components for running the web application and handling HTTP requests.
 Flask~=3.0.0
@@ -26,3 +38,4 @@ tensorflow~=2.16.1      # Backend for the transformer models. Using a specific v
 # -- API Clients & Utilities --
 # Third-party services and helper libraries.
 googlesearch-python~=1.2.3 # Simple library for performing Google searches.
+
