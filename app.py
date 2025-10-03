@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 AIONEX Backend Server
 Team Name: AIONEX
@@ -433,3 +432,4 @@ if __name__ == '__main__':
             if driver:
                 driver.quit()
             print("[+] Shutdown complete.")
+
