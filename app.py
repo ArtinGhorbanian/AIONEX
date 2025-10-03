@@ -13,6 +13,7 @@ and provides a conversational AI interface powered by OpenAI's GPT models.
 import os
 
 # Suppress TensorFlow messages (1=INFO, 2=WARNING, 3=ERROR)
+# This needs to be set before importing transformers.
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 os.environ['TF_ENABLE_ON_EDNN_OPTS'] = '0'
 
@@ -20,6 +21,7 @@ os.environ['TF_ENABLE_ON_EDNN_OPTS'] = '0'
 import re
 import logging
 from datetime import datetime
+import time
 
 # --- Third-party Libraries ---
 import requests
@@ -38,10 +40,10 @@ from waitress import serve # Using Waitress for a clean, production-ready server
 
 # --- Application Configuration & Initialization ---
 
-# Best practice: move this to an environment variable in a real-world scenario
-OPENAI_API_KEY = "my_api_key" 
+# TODO: Move API key to a .env file for better security.
+OPENAI_API_KEY = "my-api-key"
 
-# Suppress verbose logging from libraries to keep console clean
+# Suppress verbose logging from libraries to keep the console clean
 hf_logging.set_verbosity_error()
 
 # Initialize Flask App
@@ -53,7 +55,7 @@ log = logging.getLogger('werkzeug')
 log.setLevel(logging.ERROR)
 
 # Global variables for models and browser driver
-# We initialize them as None and load them in a try-except block
+# Initialized as None and loaded in a try-except block for robust startup.
 summarizer = None
 sentiment_analyzer = None
 question_answerer = None
@@ -133,7 +135,7 @@ def get_web_snippet(url: str) -> str | None:
         return "Could not retrieve a meaningful snippet from the page."
     except requests.exceptions.RequestException as e:
         # Don't crash, just log and return None
-        print(f"    - Could not fetch {url}: {e}")
+        print(f"      - Could not fetch {url}: {e}")
         return None
 
 def parse_pubmed_date(date_str: str) -> str:
@@ -151,6 +153,7 @@ def parse_pubmed_date(date_str: str) -> str:
         return "1900-01-01"
     
     # Regex to capture year, month (optional), and day (optional)
+    # Date parsing is always a little tricky. This regex is pretty robust for PubMed's format.
     match = re.search(r'(\d{4})(?: (\w{3}))?(?: (\d{1,2}))?', date_str)
     if not match:
         return "1900-01-01" # Fallback for unexpected formats
@@ -279,7 +282,9 @@ def api_analyze():
     abstract = details['abstract']
     response_data = {**details, 'link': url}
     
-    # Only run analysis if the abstract is actually available
+    # Only run analysis if the abstract is actually available.
+    # The Q&A model (distilbert) has a 512-token limit. The transformers library handles
+    # truncation automatically, so we don't need to manage it here.
     if summarizer and "not available" not in abstract:
         response_data['summary'] = summarizer(abstract, max_length=150, min_length=40, do_sample=False)[0]['summary_text']
     
@@ -301,6 +306,32 @@ def api_ask():
         
     return jsonify({'error': 'The Question & Answering service is not available.'}), 503
 
+@app.route('/api/translate', methods=['POST'])
+def api_translate():
+    """
+    API endpoint to simulate text translation.
+    In a real-world app, this would use a service like Google Translate API.
+    Here, we just simulate it to demonstrate the frontend feature.
+    """
+    payload = request.json
+    text_to_translate = payload.get('text')
+    target_lang = payload.get('lang', 'en')
+
+    if not text_to_translate:
+        return jsonify({'translatedText': ''})
+
+    # Simulate network delay of a real API call to feel more realistic
+    time.sleep(0.5) 
+    
+    # This is a placeholder. A real implementation would be much more complex.
+    # We just append the language code to show the feature is working on the frontend.
+    if target_lang != 'en':
+        translated_text = f"{text_to_translate} [translated to {target_lang}]"
+    else:
+        translated_text = text_to_translate
+
+    return jsonify({'translatedText': translated_text})
+
 @app.route('/api/chat', methods=['POST'])
 def api_chat():
     """API endpoint for the conversational AI chat."""
@@ -312,7 +343,7 @@ def api_chat():
     if not user_input or not conversation_id:
         return jsonify({'error': 'A message and a conversation_id are required.'}), 400
         
-    if not OPENAI_API_KEY or "my_api_key" in OPENAI_API_KEY:
+    if not OPENAI_API_KEY or "my-api-key" in OPENAI_API_KEY:
         return jsonify({'reply': "I can't connect to the AI brain. The OpenAI API key is missing on the server."}), 503
 
     # Retrieve or initialize conversation history
