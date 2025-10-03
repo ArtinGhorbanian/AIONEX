@@ -4,19 +4,7 @@
 # To install all required packages, run the following command in your terminal:
 # pip install -r requirements.txt
 # ------------------------------------------------------------------------------
-# -- NLP & Machine Learning --
-transformers~=4.35.0
-# Use ONE backend. If you want PyTorch:
-torch>=2.2,<3
 
-# (Optional) If you switch to PyTorch, you can REMOVE TensorFlow:
-# # -- NLP & Machine Learning --
-transformers~=4.35.0
-# Use ONE backend. If you want PyTorch:
-torch>=2.2,<3
-
-# (Optional) If you switch to PyTorch, you can REMOVE TensorFlow:
-# tensorflow~=2.16.1
 # -- Web Framework & Server --
 # Core components for running the web application and handling HTTP requests.
 Flask~=3.0.0
@@ -31,11 +19,17 @@ selenium~=4.14.0          # For automating web browser interaction (used for Pub
 webdriver-manager~=4.0.1  # To automatically manage browser drivers for Selenium.
 
 # -- NLP & Machine Learning --
-# Hugging Face ecosystem for NLP tasks.
+# The Hugging Face library requires one of the two backends below.
+# This project was developed and tested using TensorFlow.
 transformers~=4.35.0
-tensorflow~=2.16.1      # Backend for the transformer models. Using a specific version for stability.
+
+# Backend: TensorFlow (Default for this project)
+tensorflow~=2.16.1
+
+# (Optional) If you prefer PyTorch, comment out the 'tensorflow' line above
+# and uncomment the 'torch' line below. Note that this is not the tested configuration.
+# torch>=2.2,<3
 
 # -- API Clients & Utilities --
 # Third-party services and helper libraries.
 googlesearch-python~=1.2.3 # Simple library for performing Google searches.
-
