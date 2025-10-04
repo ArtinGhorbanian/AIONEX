@@ -1,6 +1,6 @@
 /* ============================================= */
 /* AIONEX - Main Stylesheet                      */
-/* Version: 8.5 (Final Refactor)                 */
+/* Version: 9.0 (Final Refactor)                 */
 /* Author: AIONEX Team                           */
 /* ============================================= */
 
@@ -17,6 +17,7 @@
     --accent-color-glow: rgba(88, 166, 255, 0.2);
     --positive-color: #2e7d32;
     --negative-color: #c62828;
+    --warning-color: #f4b400;
     --border-color: #30363d;
     
     /* Graph Bar Colors */
@@ -218,7 +219,7 @@ body {
     margin-bottom: 6px;
 }
 
-/* Animation for hamburger to 'X' */
+/* Animation for hamburger icon transforming to an 'X' */
 #hamburger-menu.open .line1 { transform: translateY(8px) rotate(45deg); }
 #hamburger-menu.open .line2 { opacity: 0; }
 #hamburger-menu.open .line3 { transform: translateY(-8px) rotate(-45deg); }
@@ -233,7 +234,7 @@ body {
     height: 100%;
     background-color: rgba(13, 17, 23, 0.9);
     backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px); /* Safari support for backdrop-filter */
     border-right: 1px solid var(--border-color);
     z-index: 1001;
     transition: transform 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
@@ -328,7 +329,8 @@ body {
 .panel-tab-content { display: none; }
 .panel-tab-content.active { display: block; }
 
-#history-list, #saves-list {
+#history-list,
+#saves-list {
     list-style: none;
 }
 
@@ -627,11 +629,11 @@ body {
     border-top-right-radius: 5px;
 }
 
-/* Message Actions (Copy, TTS) */
+/* Message Actions (Copy, TTS, Sources) */
 .message-actions {
     margin-top: 8px;
     display: flex;
-    gap: 8px;
+    gap: 15px;
     align-items: center;
 }
 
@@ -686,27 +688,38 @@ body {
     animation: fade-in-out 1.5s forwards;
 }
 
-/* Sources dropdown in chat */
-.sources-container {
+.sources-container summary {
+    list-style: none; /* Hide the default triangle */
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
     font-size: 0.9rem;
     color: var(--font-color-secondary);
-}
-
-.sources-container summary {
     cursor: pointer;
-    padding: 4px 0;
-    outline: none;
+    transition: color 0.2s;
 }
 
 .sources-container summary:hover {
     color: var(--accent-color);
 }
 
+.sources-container summary::-webkit-details-marker {
+    display: none; /* Hide the default triangle in Chrome */
+}
+
+.sources-container summary::before {
+    content: 'Sources'; /* Custom text for the dropdown trigger */
+}
+
 .sources-list {
     list-style: decimal;
     padding-left: 25px;
+    margin-top: 8px;
     max-height: 150px;
     overflow-y: auto;
+    background: var(--bg-color-deep);
+    border-radius: 5px;
+    padding: 10px 10px 10px 30px;
 }
 
 .sources-list a {
@@ -920,26 +933,14 @@ body {
     overflow-y: auto;
     padding-right: 10px;
     min-height: 0;
+    position: relative;
 }
 
-/* Custom scrollbar for content area */
-#content-area::-webkit-scrollbar {
-    width: 8px;
-}
-
-#content-area::-webkit-scrollbar-track {
-    background: var(--bg-color-surface);
-    border-radius: 4px;
-}
-
-#content-area::-webkit-scrollbar-thumb {
-    background-color: var(--border-color);
-    border-radius: 4px;
-}
-
-#content-area::-webkit-scrollbar-thumb:hover {
-    background-color: var(--accent-color);
-}
+/* Custom scrollbar for the main content area */
+#content-area::-webkit-scrollbar { width: 8px; }
+#content-area::-webkit-scrollbar-track { background: var(--bg-color-surface); border-radius: 4px; }
+#content-area::-webkit-scrollbar-thumb { background-color: var(--border-color); border-radius: 4px; }
+#content-area::-webkit-scrollbar-thumb:hover { background-color: var(--accent-color); }
 
 
 /* --- 8. Result, Summary & Graph Cards --- */
@@ -962,6 +963,9 @@ body {
     -webkit-backdrop-filter: blur(12px);
     cursor: pointer;
     transition: all 0.3s ease;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
 .result-card:hover {
@@ -970,8 +974,57 @@ body {
     box-shadow: 0 0 25px var(--accent-color-glow);
 }
 
+/* Style for articles that have no abstract and cannot be analyzed */
+.result-card.is-empty {
+    border-left-color: var(--warning-color);
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.result-card.is-empty:hover {
+    transform: translateY(0) !important;
+    box-shadow: none;
+    border-color: var(--border-color);
+    border-left-color: var(--warning-color);
+}
+
+.result-card.is-empty::after {
+    content: '\f071'; /* Font Awesome exclamation-triangle icon */
+    font-family: 'Font Awesome 5 Free';
+    font-weight: 900;
+    color: var(--warning-color);
+    font-size: 1.2rem;
+    margin-left: 15px;
+}
+
 /* Summary View */
+#back-to-results-btn {
+    position: absolute; /* Positioned relative to #content-area */
+    top: 1.5rem;
+    left: 1rem;
+    background: none;
+    border: 1px solid var(--border-color);
+    color: var(--font-color-secondary);
+    padding: 5px 12px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 0.9rem;
+    z-index: 10;
+}
+
+#back-to-results-btn:hover {
+    color: var(--font-color-main);
+    background-color: var(--bg-color-surface);
+    border-color: var(--accent-color);
+}
+
+#back-to-results-btn i {
+    margin-right: 8px;
+}
+
 .summary-card {
+    position: relative;
     background: var(--bg-color-surface);
     border: 1px solid var(--border-color);
     border-radius: 10px;
@@ -986,6 +1039,7 @@ body {
     align-items: center;
     gap: 15px;
     margin-bottom: 1rem;
+    padding-top: 30px; /* Make space for the absolute-positioned back button */
 }
 
 .summary-card h2 {
@@ -1115,6 +1169,7 @@ body {
     gap: 10px;
     margin-bottom: 15px;
 }
+
 .metrics-toggle-label {
     font-size: 0.9em;
     color: var(--font-color-secondary);
@@ -1168,7 +1223,7 @@ body {
     margin-top: 4px;
 }
 
-/* Generic Toggle Switch Style (used for Metrics) */
+/* Generic Toggle Switch Style (used for Metrics and Chat) */
 .toggle-switch {
     position: relative;
     display: inline-block;
