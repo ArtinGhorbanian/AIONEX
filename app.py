@@ -1,17 +1,18 @@
+# -*- coding: utf-8 -*-
 """
 AIONEX Backend Server
 Team Name: AIONEX
 Date: 05-10-2025
 
 This Flask application serves as the backend for the AIONEX project.
-It handles PubMed article scraping via official APIs, performs NLP analysis
+It handles PubMed article data retrieval via official APIs, performs NLP analysis
 (summarization, sentiment analysis, Q&A), and provides a conversational AI
 interface. It now includes a robust, real-data reputation engine for article analysis.
 """
 
 # --- 1. Environment Variable Setup (MUST BE FIRST) ---
 import os
-# Suppress TensorFlow messages (1=INFO, 2=WARNING, 3=ERROR)
+# Suppress TensorFlow messages (1=INFO, 2=WARNING, 3=ERROR) for a cleaner console.
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 os.environ['TF_ENABLE_ON_EDNN_OPTS'] = '0'
 
@@ -35,7 +36,8 @@ from deep_translator import GoogleTranslator
 
 # TODO: For production, move API keys to a .env file and load them securely.
 OPENAI_API_KEY = "YOUR_API_KEY"
-PUBMED_EMAIL = os.environ.get("PUBMED_EMAIL", "your-email@example.com") # Default email
+# NCBI requires an email for API access. Provide a default if not set in the environment.
+PUBMED_EMAIL = os.environ.get("PUBMED_EMAIL", "aionex.ai.team@gmail.com")
 
 # Constants for external services
 NCBI_EUTILS_BASE = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"
@@ -44,28 +46,28 @@ REQUEST_TIMEOUT = 15
 # Be a good API citizen by identifying your tool to NCBI.
 NCBI_TOOL_PARAMS = {"tool": "AIONEX-NASA-Competition", "email": PUBMED_EMAIL}
 
-# Suppress library-specific logging for a cleaner console
+# Suppress library-specific logging
 hf_logging.set_verbosity_error()
 
 # Initialize Flask App
 app = Flask(__name__, template_folder='templates', static_folder='static')
 CORS(app)
-logging.getLogger('werkzeug').setLevel(logging.ERROR)
+logging.getLogger('werkzeug').setLevel(logging.ERROR) # Silences default Flask server logs
 
-# Global variables, initialized at startup
+# Global variables for shared resources
 summarizer = None
 sentiment_analyzer = None
 question_answerer = None
 chat_histories = {}
 # A Lock is crucial to prevent race conditions when multiple requests
-# try to use the same shared NLP model simultaneously in a threaded server.
+# try to use the same shared NLP model simultaneously in a threaded server like Waitress.
 model_lock = Lock()
 
 # --- 3. Model Loading ---
 try:
     print("[*] AIONEX System Booting...")
     print("[*] Loading NLP models from Hugging Face...")
-    # Using a lock here ensures thread-safe initialization, a good practice.
+    # Using a lock here ensures thread-safe initialization, a good practice for concurrent environments.
     with model_lock:
         summarizer = pipeline("summarization", model="sshleifer/distilbart-cnn-12-6")
         sentiment_analyzer = pipeline('sentiment-analysis', model="distilbert-base-uncased-finetuned-sst-2-english")
@@ -103,7 +105,7 @@ def get_article_details(pmid: str) -> dict | None:
 
         title = article.find('ArticleTitle').get_text(strip=True) if article.find('ArticleTitle') else "Title not found"
         
-        # Reconstruct structured abstracts correctly
+        # Reconstruct structured abstracts correctly by joining parts.
         abstract_parts = []
         for abstract_text in article.find_all('AbstractText'):
             label = abstract_text.get('Label')
@@ -161,15 +163,15 @@ def api_search():
         for pmid in id_list:
             article_data = summary_data.get(pmid)
             if article_data:
-                # Safely parse various date formats from PubMed
+                # Safely parse various date formats from PubMed.
                 pub_date_str = article_data.get("pubdate", "1900-01-01")
-                date_str = "1900-01-01"
+                date_str = "1900-01-01" # Default fallback
                 try:
-                    # Tries formats like "2023", "2023 Oct 10", etc.
+                    # Tries to parse year-only formats like "2023".
                     parsed_date = datetime.strptime(pub_date_str.split(" ")[0], "%Y")
                     date_str = parsed_date.strftime('%Y-%m-%d')
                 except ValueError:
-                    pass # Let it default if format is unexpected
+                    pass # Silently ignore if format is not just a year.
 
                 articles.append({
                     'title': article_data.get("title", "No Title Available"),
@@ -207,7 +209,8 @@ def api_analyze():
     with model_lock:
         if summarizer and "not available" not in abstract:
             try:
-                response_data['summary'] = summarizer(abstract, max_length=150, min_length=40, do_sample=False)[0]['summary_text']
+                summary_input = abstract[:4096] # Truncate for safety
+                response_data['summary'] = summarizer(summary_input, max_length=150, min_length=40, do_sample=False)[0]['summary_text']
             except Exception as e:
                 print(f"[!] Summarization failed: {e}")
                 response_data['summary'] = "AI summary could not be generated."
@@ -275,7 +278,7 @@ def api_reputation(pmid: str):
     This is a pragmatic proxy for article impact, not an official metric.
     """
     try:
-        # Step 1: Get core metadata from PubMed ESummary.
+        # Step 1: Get core metadata from PubMed ESummary. This is the most critical data.
         summary_params = {"db": "pubmed", "id": pmid, "retmode": "json", **NCBI_TOOL_PARAMS}
         summary_res = requests.get(f"{NCBI_EUTILS_BASE}/esummary.fcgi", params=summary_params, timeout=REQUEST_TIMEOUT)
         summary_res.raise_for_status()
@@ -288,36 +291,37 @@ def api_reputation(pmid: str):
 
         # Step 2: Get citation count from PubMed ELink.
         citations = 0
-        elink_params = {"dbfrom": "pubmed", "linkname": "pubmed_pubmed_citedin", "id": pmid, "retmode": "json", **NCBI_TOOL_PARAMS}
-        elink_res = requests.get(f"{NCBI_EUTILS_BASE}/elink.fcgi", params=elink_params, timeout=REQUEST_TIMEOUT)
-        if elink_res.ok:
-            linkset = elink_res.json().get("linksets", [])
-            if linkset and linkset[0].get("linksetdbs"):
-                citations = len(linkset[0]["linksetdbs"][0].get("links", []))
+        try:
+            elink_params = {"dbfrom": "pubmed", "linkname": "pubmed_pubmed_citedin", "id": pmid, "retmode": "json", **NCBI_TOOL_PARAMS}
+            elink_res = requests.get(f"{NCBI_EUTILS_BASE}/elink.fcgi", params=elink_params, timeout=REQUEST_TIMEOUT)
+            if elink_res.ok:
+                linkset = elink_res.json().get("linksets", [])
+                if linkset and linkset[0].get("linksetdbs"):
+                    citations = len(linkset[0]["linksetdbs"][0].get("links", []))
+        except Exception:
+            pass # Fail silently, as this is an enhancement.
 
         # Step 3 & 4: Use OpenAlex for journal and author activity (often has richer data).
         journal_activity, author_pubs = 0, 0
-        if journal_title:
-            try:
+        try:
+            if journal_title:
                 oa_res = requests.get(f"{OPENALEX_API_BASE}/venues", params={"filter": f"display_name.search:{journal_title}", "per-page": "1"}, timeout=REQUEST_TIMEOUT)
                 if oa_res.ok and oa_res.json().get("results"):
                     journal_activity = oa_res.json()["results"][0].get("works_count", 0)
-            except Exception: pass # Fail silently if optional APIs are down
-        if first_author:
-            try:
+            if first_author:
                 oa_res = requests.get(f"{OPENALEX_API_BASE}/authors", params={"filter": f"display_name.search:{first_author}", "per-page": "1"}, timeout=REQUEST_TIMEOUT)
                 if oa_res.ok and oa_res.json().get("results"):
                     author_pubs = oa_res.json()["results"][0].get("works_count", 0)
-            except Exception: pass
+        except Exception:
+            pass # Also fail silently for this non-critical API.
 
         # --- Scoring Logic (0-100 scale) ---
         def scale_log(value, max_val):
-            # Logarithmic scale feels more natural for metrics like citations
-            # that have a long-tail distribution (a few have many, most have few).
+            """Scales a value logarithmically, which is better for data with a wide range like citations."""
             if value <= 0: return 0
             return min(100, int(100 * math.log10(1 + value) / math.log10(1 + max_val)))
 
-        citations_score = scale_log(citations, 200) # Capping at 200 for a reasonable scale.
+        citations_score = scale_log(citations, 200) # Capping at 200 recent citations is a strong signal.
         open_access_score = 100 if is_open_access else 30 # Strong bonus for open access.
         recency_score = max(10, 100 - (datetime.now().year - pub_year) * 5) # Score decays over time.
         journal_activity_score = scale_log(journal_activity, 50000) # Top journals have >50k works.
@@ -342,11 +346,10 @@ def api_chat():
     conversation_id = payload.get('conversation_id')
 
     # Robust check for API key and required parameters
-    if not all([user_input, conversation_id, OPENAI_API_KEY and OPENAI_API_KEY.startswith("sk-")]):
-        error_msg = "A message and conversation_id are required."
-        if not (OPENAI_API_KEY and OPENAI_API_KEY.startswith("sk-")):
-            error_msg = "OpenAI API key is not configured on the server."
-        return jsonify({'error': error_msg}), 400 if 'key' not in error_msg else 503
+    if not all([user_input, conversation_id]):
+        return jsonify({'error': 'A message and conversation_id are required.'}), 400
+    if not (OPENAI_API_KEY and OPENAI_API_KEY.startswith("sk-")):
+        return jsonify({'error': 'OpenAI API key is not configured on the server.'}), 503
 
     history = chat_histories.get(conversation_id, [])
     
