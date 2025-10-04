@@ -4,246 +4,126 @@ Team Name: AIONEX
 Date: 05-10-2025
 
 This Flask application serves as the backend for the AIONEX project.
-It handles PubMed article scraping, NLP analysis (summarization, sentiment analysis),
-and provides a conversational AI interface powered by OpenAI's GPT models.
+It handles PubMed article scraping via official APIs, performs NLP analysis
+(summarization, sentiment analysis, Q&A), and provides a conversational AI
+interface. It now includes a robust, real-data reputation engine for article analysis.
 """
 
 # --- 1. Environment Variable Setup (MUST BE FIRST) ---
 import os
-
 # Suppress TensorFlow messages (1=INFO, 2=WARNING, 3=ERROR)
-# This needs to be set before importing transformers.
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 os.environ['TF_ENABLE_ON_EDNN_OPTS'] = '0'
 
 # --- Core Libraries ---
 import re
 import logging
+import math
 from datetime import datetime
-import time
+from threading import Lock
 
 # --- Third-party Libraries ---
 import requests
 from bs4 import BeautifulSoup
 from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from webdriver_manager.chrome import ChromeDriverManager
 from transformers import pipeline, logging as hf_logging
-from googlesearch import search
-from waitress import serve # Using Waitress for a clean, production-ready server
+from waitress import serve
+from deep_translator import GoogleTranslator
 
-# --- Application Configuration & Initialization ---
+# --- 2. Application Configuration & Initialization ---
 
-# TODO: Move API key to a .env file for better security.
-OPENAI_API_KEY = "my-api-key"
+# TODO: For production, move API keys to a .env file and load them securely.
+OPENAI_API_KEY = "YOUR_API_KEY"
+PUBMED_EMAIL = os.environ.get("PUBMED_EMAIL", "your-email@example.com") # Default email
 
-# Suppress verbose logging from libraries to keep the console clean
+# Constants for external services
+NCBI_EUTILS_BASE = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"
+OPENALEX_API_BASE = "https://api.openalex.org"
+REQUEST_TIMEOUT = 15
+# Be a good API citizen by identifying your tool to NCBI.
+NCBI_TOOL_PARAMS = {"tool": "AIONEX-NASA-Competition", "email": PUBMED_EMAIL}
+
+# Suppress library-specific logging for a cleaner console
 hf_logging.set_verbosity_error()
 
 # Initialize Flask App
 app = Flask(__name__, template_folder='templates', static_folder='static')
-CORS(app) # Enable Cross-Origin Resource Sharing for the frontend
+CORS(app)
+logging.getLogger('werkzeug').setLevel(logging.ERROR)
 
-# Silence default Flask server logs for a cleaner startup message
-log = logging.getLogger('werkzeug')
-log.setLevel(logging.ERROR)
-
-# Global variables for models and browser driver
-# Initialized as None and loaded in a try-except block for robust startup.
+# Global variables, initialized at startup
 summarizer = None
 sentiment_analyzer = None
 question_answerer = None
-driver = None
-chat_histories = {} # Simple in-memory cache for conversation histories
+chat_histories = {}
+# A Lock is crucial to prevent race conditions when multiple requests
+# try to use the same shared NLP model simultaneously in a threaded server.
+model_lock = Lock()
 
-# --- 2. Model & Browser Engine Loading ---
-# This block attempts to load all necessary components at startup.
-# If any part fails, the application will print an error and refuse to start.
-
+# --- 3. Model Loading ---
 try:
     print("[*] AIONEX System Booting...")
-    
-    # Load Hugging Face NLP models
     print("[*] Loading NLP models from Hugging Face...")
-    summarizer = pipeline("summarization", model="sshleifer/distilbart-cnn-12-6")
-    print("  [+] Summarization model loaded successfully.")
-    sentiment_analyzer = pipeline('sentiment-analysis', model="distilbert-base-uncased-finetuned-sst-2-english")
-    print("  [+] Sentiment Analysis model loaded successfully.")
-    question_answerer = pipeline('question-answering', model="distilbert-base-cased-distilled-squad")
-    print("  [+] Question Answering model loaded successfully.")
-    
-    print("\n[*] Conversational AI is now powered by OpenAI's GPT API.")
-
-    # Configure and initialize a headless Selenium Chrome browser
-    print("[*] Initializing stealth headless browser engine...")
-    options = webdriver.ChromeOptions()
-    options.add_argument("--headless")
-    options.add_argument("--disable-gpu") # Necessary for some headless environments
-    options.add_argument("--window-size=1920,1080")
-    # This user agent helps to avoid bot detection
-    options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36")
-    
-    # Further attempts to appear as a regular user and suppress logs
-    options.add_experimental_option("excludeSwitches", ["enable-automation", "enable-logging"])
-    options.add_experimental_option('useAutomationExtension', False)
-    options.add_argument('--log-level=3') # Suppress most browser console logs
-
-    # Redirect the service's own logs to the null device to ensure silence
-    service = Service(ChromeDriverManager().install(), log_output=os.devnull)
-    driver = webdriver.Chrome(service=service, options=options)
-    print("[+] Browser engine is online and ready.\n")
+    # Using a lock here ensures thread-safe initialization, a good practice.
+    with model_lock:
+        summarizer = pipeline("summarization", model="sshleifer/distilbart-cnn-12-6")
+        sentiment_analyzer = pipeline('sentiment-analysis', model="distilbert-base-uncased-finetuned-sst-2-english")
+        question_answerer = pipeline('question-answering', model="distilbert-base-cased-distilled-squad")
+    print("  [+] All NLP models loaded successfully.")
+    print("\n[*] Conversational AI is powered by OpenAI's GPT API.")
+    print("[*] Reputation engine is connected to live public APIs (PubMed, OpenAlex).")
 
 except Exception as e:
-    print(f"\n[!] CRITICAL ERROR during initialization: {e}")
-    print("[!] The server cannot start without all its core components. Please check your connection and dependencies.")
+    print(f"\n[!] CRITICAL ERROR during model initialization: {e}")
+    print("[!] The server cannot start without its core components.")
+    exit(1) # Exit immediately if models fail to load.
 
-# --- 3. Helper Functions & Core Logic ---
+# --- 4. Helper Functions ---
 
-def get_web_snippet(url: str) -> str | None:
-    """
-    Fetches a brief snippet from a given URL.
-    It first tries to get the meta description, then falls back to the first paragraph.
-    
-    Args:
-        url (str): The URL to fetch content from.
+def get_pmid_from_url(url: str) -> str | None:
+    """Extracts the PubMed ID (PMID) from a PubMed URL using regex."""
+    match = re.search(r'pubmed\.ncbi\.nlm\.nih\.gov/(\d+)', url)
+    return match.group(1) if match else None
 
-    Returns:
-        str or None: The extracted snippet text, or None if fetching fails.
-    """
+def get_article_details(pmid: str) -> dict | None:
+    """Fetches detailed article information (title, abstract) using PubMed's efetch utility."""
     try:
-        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
-        response = requests.get(url, headers=headers, timeout=5)
-        response.raise_for_status()
-        soup = BeautifulSoup(response.content, 'html.parser')
-        
-        # Prioritize the meta description tag for a concise summary
-        meta_description = soup.find('meta', attrs={'name': 'description'})
-        if meta_description and meta_description.get('content'):
-            return meta_description.get('content').strip()
-
-        # Fallback: grab the first paragraph if no meta description is found
-        first_paragraph = soup.find('p')
-        if first_paragraph and first_paragraph.get_text():
-            return first_paragraph.get_text().strip()
-
-        return "Could not retrieve a meaningful snippet from the page."
-    except requests.exceptions.RequestException as e:
-        # Don't crash, just log and return None
-        print(f"      - Could not fetch {url}: {e}")
-        return None
-
-def parse_pubmed_date(date_str: str) -> str:
-    """
-    Parses a date string from PubMed's citation format into 'YYYY-MM-DD'.
-    Handles various formats like '2023', '2023 Oct', '2023 Oct 15'.
-
-    Args:
-        date_str (str): The raw date string from the citation.
-
-    Returns:
-        str: A formatted date string. Defaults to '1900-01-01' if parsing fails.
-    """
-    if not date_str:
-        return "1900-01-01"
-    
-    # Regex to capture year, month (optional), and day (optional)
-    # Date parsing is always a little tricky. This regex is pretty robust for PubMed's format.
-    match = re.search(r'(\d{4})(?: (\w{3}))?(?: (\d{1,2}))?', date_str)
-    if not match:
-        return "1900-01-01" # Fallback for unexpected formats
-        
-    year, month_str, day = match.groups()
-    month_map = {
-        'Jan': 1, 'Feb': 2, 'Mar': 3, 'Apr': 4, 'May': 5, 'Jun': 6, 
-        'Jul': 7, 'Aug': 8, 'Sep': 9, 'Oct': 10, 'Nov': 11, 'Dec': 12
-    }
-    
-    month = month_map.get(month_str, 1) # Default to January if no month
-    day = int(day) if day else 1       # Default to the 1st if no day
-    
-    try:
-        return datetime(int(year), month, day).strftime('%Y-%m-%d')
-    except ValueError:
-        # Handles cases like '2023 Feb 30'
-        return f"{year}-01-01"
-
-def search_pubmed(query: str) -> list | None:
-    """
-    Uses Selenium to search PubMed and scrape the first page of results.
-    
-    Args:
-        query (str): The search term.
-        
-    Returns:
-        list or None: A list of article dictionaries, or None on failure.
-    """
-    if not driver:
-        return None
-    
-    url = f'https://pubmed.ncbi.nlm.nih.gov/?term={query}'
-    try:
-        driver.get(url)
-        # Wait for the search results to actually load on the page
-        WebDriverWait(driver, 20).until(
-            EC.visibility_of_element_located((By.CSS_SELECTOR, "section.search-results-list article"))
+        response = requests.get(
+            f"{NCBI_EUTILS_BASE}/efetch.fcgi",
+            params={"db": "pubmed", "id": pmid, "retmode": "xml", **NCBI_TOOL_PARAMS},
+            timeout=REQUEST_TIMEOUT,
         )
-        
-        soup = BeautifulSoup(driver.page_source, 'html.parser')
-        
-        scraped_articles = []
-        article_elements = soup.find_all('article', class_='full-docsum')
-
-        for article in article_elements:
-            title_tag = article.find('a', class_='docsum-title')
-            citation_tag = article.find('span', class_='docsum-journal-citation')
-            
-            if title_tag and citation_tag:
-                scraped_articles.append({
-                    'title': title_tag.get_text(strip=True),
-                    'link': f"https://pubmed.ncbi.nlm.nih.gov{title_tag['href']}",
-                    'date': parse_pubmed_date(citation_tag.get_text(strip=True))
-                })
-        return scraped_articles
-    except Exception as e:
-        print(f"[!] Error during PubMed search for '{query}': {e}")
-        return None
-
-def get_article_details(url: str) -> dict | None:
-    """
-    Scrapes the title and abstract from a specific PubMed article page.
-    
-    Args:
-        url (str): The URL of the PubMed article.
-
-    Returns:
-        dict or None: A dictionary with title and abstract, or None on failure.
-    """
-    try:
-        response = requests.get(url, timeout=15)
         response.raise_for_status()
         
-        soup = BeautifulSoup(response.content, 'html.parser')
+        root = BeautifulSoup(response.content, 'xml')
+        article = root.find('PubmedArticle')
+        if not article:
+            return None
+
+        title = article.find('ArticleTitle').get_text(strip=True) if article.find('ArticleTitle') else "Title not found"
         
-        title = soup.find('h1', class_='heading-title').get_text(strip=True) if soup.find('h1', class_='heading-title') else "Title not found"
-        abstract_div = soup.find('div', class_='abstract-content')
+        # Reconstruct structured abstracts correctly
+        abstract_parts = []
+        for abstract_text in article.find_all('AbstractText'):
+            label = abstract_text.get('Label')
+            text = abstract_text.get_text(strip=True)
+            if label:
+                abstract_parts.append(f"**{label}:** {text}")
+            else:
+                abstract_parts.append(text)
         
-        if abstract_div:
-            # Join all paragraphs and subheadings within the abstract
-            abstract_text = "\n\n".join(p.get_text(strip=True) for p in abstract_div.find_all(['p', 'h4']))
-        else:
-            abstract_text = "Abstract not available."
-            
-        return {'title': title, 'abstract': abstract_text}
+        abstract = "\n\n".join(abstract_parts) if abstract_parts else "Abstract not available."
+        
+        return {'title': title, 'abstract': abstract}
+    except requests.exceptions.RequestException as e:
+        print(f"[!] Network error fetching details for PMID {pmid}: {e}")
+        return None
     except Exception as e:
-        print(f"[!] Failed to get article details from {url}: {e}")
+        print(f"[!] Error parsing details for PMID {pmid}: {e}")
         return None
 
-# --- 4. Flask API Routes ---
+# --- 5. Flask API Routes ---
 
 @app.route('/')
 def index():
@@ -252,143 +132,231 @@ def index():
 
 @app.route('/api/search', methods=['POST'])
 def api_search():
-    """API endpoint to search PubMed."""
-    payload = request.json
-    query = payload.get('query')
-    
+    """
+    API endpoint to search PubMed using the official E-utilities.
+    This is more reliable and efficient than web scraping.
+    """
+    query = request.json.get('query')
     if not query:
         return jsonify({'error': 'Query is required.'}), 400
-        
-    articles = search_pubmed(query)
-    if articles is not None:
+
+    try:
+        # Step 1: ESearch - Get a list of PMIDs matching the query.
+        search_params = {"db": "pubmed", "term": query, "retmax": "20", "retmode": "json", "sort": "relevance", **NCBI_TOOL_PARAMS}
+        search_response = requests.get(f"{NCBI_EUTILS_BASE}/esearch.fcgi", params=search_params, timeout=REQUEST_TIMEOUT)
+        search_response.raise_for_status()
+        id_list = search_response.json().get("esearchresult", {}).get("idlist", [])
+
+        if not id_list:
+            return jsonify([])
+
+        # Step 2: ESummary - Get summaries for the found PMIDs in a single batch.
+        summary_params = {"db": "pubmed", "id": ",".join(id_list), "retmode": "json", **NCBI_TOOL_PARAMS}
+        summary_response = requests.get(f"{NCBI_EUTILS_BASE}/esummary.fcgi", params=summary_params, timeout=REQUEST_TIMEOUT)
+        summary_response.raise_for_status()
+        summary_data = summary_response.json().get("result", {})
+
+        # Step 3: Format results into a clean structure for the frontend.
+        articles = []
+        for pmid in id_list:
+            article_data = summary_data.get(pmid)
+            if article_data:
+                # Safely parse various date formats from PubMed
+                pub_date_str = article_data.get("pubdate", "1900-01-01")
+                date_str = "1900-01-01"
+                try:
+                    # Tries formats like "2023", "2023 Oct 10", etc.
+                    parsed_date = datetime.strptime(pub_date_str.split(" ")[0], "%Y")
+                    date_str = parsed_date.strftime('%Y-%m-%d')
+                except ValueError:
+                    pass # Let it default if format is unexpected
+
+                articles.append({
+                    'title': article_data.get("title", "No Title Available"),
+                    'link': f"https://pubmed.ncbi.nlm.nih.gov/{pmid}/",
+                    'date': date_str,
+                })
         return jsonify(articles)
-        
-    return jsonify({'error': 'The PubMed search service is currently unavailable.'}), 503
+
+    except requests.exceptions.RequestException as e:
+        print(f"[!] PubMed search network error: {e}")
+        return jsonify({'error': 'The PubMed search service is currently unavailable.'}), 503
+    except Exception as e:
+        print(f"[!] An unexpected error occurred during search: {e}")
+        return jsonify({'error': 'An internal server error occurred.'}), 500
 
 @app.route('/api/analyze', methods=['POST'])
 def api_analyze():
-    """API endpoint to analyze a single article (summary, sentiment)."""
-    payload = request.json
-    url = payload.get('url')
-    
+    """Analyzes a single article: gets abstract, summarizes, and checks sentiment."""
+    url = request.json.get('url')
     if not url:
         return jsonify({'error': 'URL is required.'}), 400
-        
-    details = get_article_details(url)
+
+    pmid = get_pmid_from_url(url)
+    if not pmid:
+        return jsonify({'error': 'Invalid PubMed URL provided.'}), 400
+
+    details = get_article_details(pmid)
     if not details:
-        return jsonify({'error': 'Failed to retrieve article details from the provided URL.'}), 500
+        return jsonify({'error': 'Failed to retrieve article details.'}), 500
         
-    abstract = details['abstract']
     response_data = {**details, 'link': url}
+    abstract = details['abstract']
     
-    # Only run analysis if the abstract is actually available.
-    # The Q&A model (distilbert) has a 512-token limit. The transformers library handles
-    # truncation automatically, so we don't need to manage it here.
-    if summarizer and "not available" not in abstract:
-        response_data['summary'] = summarizer(abstract, max_length=150, min_length=40, do_sample=False)[0]['summary_text']
-    
-    if sentiment_analyzer and "not available" not in abstract:
-        response_data['sentiment'] = sentiment_analyzer(abstract)[0]['label']
+    # Use the lock to ensure only one request uses the models at a time.
+    with model_lock:
+        if summarizer and "not available" not in abstract:
+            try:
+                response_data['summary'] = summarizer(abstract, max_length=150, min_length=40, do_sample=False)[0]['summary_text']
+            except Exception as e:
+                print(f"[!] Summarization failed: {e}")
+                response_data['summary'] = "AI summary could not be generated."
         
+        if sentiment_analyzer and "not available" not in abstract:
+            try:
+                # Truncate abstract to 512 chars for the sentiment model to prevent errors.
+                sentiment_result = sentiment_analyzer(abstract[:512])[0]
+                response_data['sentiment'] = sentiment_result['label']
+            except Exception as e:
+                print(f"[!] Sentiment analysis failed: {e}")
+                response_data['sentiment'] = "UNKNOWN"
+            
     return jsonify(response_data)
 
 @app.route('/api/ask', methods=['POST'])
 def api_ask():
-    """API endpoint for question-answering over a given context."""
+    """Handles question-answering over a given context, with improved error handling."""
     payload = request.json
-    if not payload or 'question' not in payload or 'context' not in payload:
-        return jsonify({'error': 'Both "question" and "context" are required fields.'}), 400
+    question = payload.get('question', '').strip()
+    context = payload.get('context', '').strip()
+
+    if not all([question, context, question_answerer]):
+        return jsonify({'error': 'Both "question" and "context" are required.'}), 400
         
-    if question_answerer:
-        result = question_answerer(question=payload['question'], context=payload['context'])
-        return jsonify(result)
-        
-    return jsonify({'error': 'The Question & Answering service is not available.'}), 503
+    with model_lock:
+        try:
+            result = question_answerer(question=question, context=context)
+            # If the model's confidence is low, the answer is likely irrelevant.
+            # This prevents returning nonsensical answers.
+            if result['score'] < 0.1: # This threshold can be tuned.
+                return jsonify({'answer': "A clear answer could not be found in the text."})
+            return jsonify(result)
+        except Exception as e:
+            print(f"[!] Question-answering model failed: {e}")
+            return jsonify({'error': 'The Question & Answering service is not available.'}), 503
 
 @app.route('/api/translate', methods=['POST'])
 def api_translate():
-    """
-    API endpoint to simulate text translation.
-    In a real-world app, this would use a service like Google Translate API.
-    Here, we just simulate it to demonstrate the frontend feature.
-    """
+    """Translates a list of texts to a target language using the deep-translator library."""
     payload = request.json
-    text_to_translate = payload.get('text')
-    target_lang = payload.get('lang', 'en')
+    texts = payload.get("texts", [])
+    lang = payload.get("lang", "en")
 
-    if not text_to_translate:
-        return jsonify({'translatedText': ''})
+    if not texts:
+        return jsonify({"translations": []})
+        
+    # The library expects 'zh-CN' for Mandarin, so we correct it here.
+    if lang == 'zh':
+        lang = 'zh-CN'
 
-    # Simulate network delay of a real API call to feel more realistic
-    time.sleep(0.5) 
-    
-    # This is a placeholder. A real implementation would be much more complex.
-    # We just append the language code to show the feature is working on the frontend.
-    if target_lang != 'en':
-        translated_text = f"{text_to_translate} [translated to {target_lang}]"
-    else:
-        translated_text = text_to_translate
+    try:
+        # The library handles API calls and fallbacks gracefully.
+        translated_texts = GoogleTranslator(source="auto", target=lang).translate_batch(texts)
+        return jsonify({"translations": translated_texts})
+    except Exception as e:
+        print(f"[!] Translation to '{lang}' failed: {e}")
+        # If translation fails, return the original texts so the UI doesn't break.
+        return jsonify({"translations": texts})
 
-    return jsonify({'translatedText': translated_text})
+@app.route('/api/reputation/<pmid>')
+def api_reputation(pmid: str):
+    """
+    Provides a real reputation score based on public data signals from PubMed and OpenAlex.
+    This is a pragmatic proxy for article impact, not an official metric.
+    """
+    try:
+        # Step 1: Get core metadata from PubMed ESummary.
+        summary_params = {"db": "pubmed", "id": pmid, "retmode": "json", **NCBI_TOOL_PARAMS}
+        summary_res = requests.get(f"{NCBI_EUTILS_BASE}/esummary.fcgi", params=summary_params, timeout=REQUEST_TIMEOUT)
+        summary_res.raise_for_status()
+        res = summary_res.json().get("result", {}).get(pmid, {})
+        
+        journal_title = res.get("fulljournalname", "")
+        pub_year = int((res.get("pubdate") or "1900").split(" ")[0])
+        first_author = (res.get("authors")[0].get("name")) if res.get("authors") else None
+        is_open_access = any(aid.get("idtype") == "pmcid" for aid in res.get("articleids", []))
+
+        # Step 2: Get citation count from PubMed ELink.
+        citations = 0
+        elink_params = {"dbfrom": "pubmed", "linkname": "pubmed_pubmed_citedin", "id": pmid, "retmode": "json", **NCBI_TOOL_PARAMS}
+        elink_res = requests.get(f"{NCBI_EUTILS_BASE}/elink.fcgi", params=elink_params, timeout=REQUEST_TIMEOUT)
+        if elink_res.ok:
+            linkset = elink_res.json().get("linksets", [])
+            if linkset and linkset[0].get("linksetdbs"):
+                citations = len(linkset[0]["linksetdbs"][0].get("links", []))
+
+        # Step 3 & 4: Use OpenAlex for journal and author activity (often has richer data).
+        journal_activity, author_pubs = 0, 0
+        if journal_title:
+            try:
+                oa_res = requests.get(f"{OPENALEX_API_BASE}/venues", params={"filter": f"display_name.search:{journal_title}", "per-page": "1"}, timeout=REQUEST_TIMEOUT)
+                if oa_res.ok and oa_res.json().get("results"):
+                    journal_activity = oa_res.json()["results"][0].get("works_count", 0)
+            except Exception: pass # Fail silently if optional APIs are down
+        if first_author:
+            try:
+                oa_res = requests.get(f"{OPENALEX_API_BASE}/authors", params={"filter": f"display_name.search:{first_author}", "per-page": "1"}, timeout=REQUEST_TIMEOUT)
+                if oa_res.ok and oa_res.json().get("results"):
+                    author_pubs = oa_res.json()["results"][0].get("works_count", 0)
+            except Exception: pass
+
+        # --- Scoring Logic (0-100 scale) ---
+        def scale_log(value, max_val):
+            # Logarithmic scale feels more natural for metrics like citations
+            # that have a long-tail distribution (a few have many, most have few).
+            if value <= 0: return 0
+            return min(100, int(100 * math.log10(1 + value) / math.log10(1 + max_val)))
+
+        citations_score = scale_log(citations, 200) # Capping at 200 for a reasonable scale.
+        open_access_score = 100 if is_open_access else 30 # Strong bonus for open access.
+        recency_score = max(10, 100 - (datetime.now().year - pub_year) * 5) # Score decays over time.
+        journal_activity_score = scale_log(journal_activity, 50000) # Top journals have >50k works.
+        author_activity_score = scale_log(author_pubs, 300) # Prolific authors have >300 works.
+
+        return jsonify({
+            "components": {
+                "Citations": citations_score, "Open Access": open_access_score,
+                "Recency": recency_score, "Journal Activity": journal_activity_score,
+                "Author Activity": author_activity_score,
+            }
+        })
+    except Exception as e:
+        print(f"[Reputation Engine] Failed for PMID {pmid}: {e}")
+        return jsonify({"error": "Could not retrieve full reputation data."}), 502
 
 @app.route('/api/chat', methods=['POST'])
 def api_chat():
-    """API endpoint for the conversational AI chat."""
+    """Handles conversational AI requests to OpenAI."""
     payload = request.json
     user_input = payload.get('message')
     conversation_id = payload.get('conversation_id')
-    search_web_enabled = payload.get('search_web', False)
 
-    if not user_input or not conversation_id:
-        return jsonify({'error': 'A message and a conversation_id are required.'}), 400
-        
-    if not OPENAI_API_KEY or "my-api-key" in OPENAI_API_KEY:
-        return jsonify({'reply': "I can't connect to the AI brain. The OpenAI API key is missing on the server."}), 503
+    # Robust check for API key and required parameters
+    if not all([user_input, conversation_id, OPENAI_API_KEY and OPENAI_API_KEY.startswith("sk-")]):
+        error_msg = "A message and conversation_id are required."
+        if not (OPENAI_API_KEY and OPENAI_API_KEY.startswith("sk-")):
+            error_msg = "OpenAI API key is not configured on the server."
+        return jsonify({'error': error_msg}), 400 if 'key' not in error_msg else 503
 
-    # Retrieve or initialize conversation history
     history = chat_histories.get(conversation_id, [])
-    sources = []
-    web_context = ""
-
-    if search_web_enabled:
-        print(f"[*] Performing web search for: '{user_input}'")
-        try:
-            search_results_urls = list(search(user_input, num_results=3, lang="en"))
-            
-            if search_results_urls:
-                web_context_parts = ["You MUST use the following web search results to answer the user's question:\n"]
-                for url in search_results_urls:
-                    print(f"  -> Fetching snippet from: {url}")
-                    snippet = get_web_snippet(url)
-                    if snippet:
-                        sources.append(url)
-                        web_context_parts.append(f"Source URL: {url}\nContent: {snippet}\n")
-                web_context = "\n".join(web_context_parts)
-            else:
-                web_context = "Web search returned no results. You must answer based on your own knowledge.\n\n"
-        except Exception as e:
-            print(f"[!] Web search failed: {e}")
-            web_context = "An error occurred during the web search. Rely on your internal knowledge.\n\n"
-
-    # Define the AI's persona and rules
+    
     system_prompt = (
         "You are AIONEX, a friendly and enthusiastic AI assistant specializing in space, astronomy, and NASA. "
-        "1. Your knowledge is strictly limited to these topics. "
-        "2. If asked about any other topic (like Bitcoin, cooking, etc.), you MUST politely refuse to answer. "
-        "3. If web search results are provided, you MUST base your answer on them and only them. "
-        "4. Default to English, but if the user writes in another language, you should respond in that same language."
+        "Your knowledge is strictly limited to these topics. If asked about anything else, you MUST politely refuse to answer. "
+        "Default to English, but if the user writes in another language, you must respond in that same language."
     )
     
-    # Construct the message payload for OpenAI
-    messages = [{"role": "system", "content": system_prompt}]
-    for turn in history:
-        messages.append({"role": turn['role'].lower(), "content": turn['content']})
-    
-    # Add web context if it exists
-    if web_context:
-        messages.append({"role": "system", "content": web_context})
-
-    messages.append({"role": "user", "content": user_input})
+    messages = [{"role": "system", "content": system_prompt}] + history + [{"role": "user", "content": user_input}]
     
     headers = { "Authorization": f"Bearer {OPENAI_API_KEY}", "Content-Type": "application/json" }
     api_payload = { "model": "gpt-3.5-turbo", "messages": messages }
@@ -401,35 +369,21 @@ def api_chat():
         ai_reply = api_response['choices'][0]['message']['content'].strip()
 
         # Update and truncate conversation history
-        history.append({'role': 'User', 'content': user_input})
-        history.append({'role': 'Assistant', 'content': ai_reply})
+        history.extend([{'role': 'user', 'content': user_input}, {'role': 'assistant', 'content': ai_reply}])
         chat_histories[conversation_id] = history[-6:] # Keep only the last 3 turns
 
-        return jsonify({'reply': ai_reply, 'sources': sources})
+        return jsonify({'reply': ai_reply, 'sources': []})
         
     except requests.exceptions.RequestException as e:
         print(f"[!] OpenAI API connection error: {e}")
-        return jsonify({'reply': 'Sorry, I am having trouble connecting to the network. Please try again.', 'sources': []}), 504
+        return jsonify({'error': 'Sorry, I am having trouble connecting to the network.'}), 504
     except Exception as e:
         print(f"[!] An unexpected error occurred in the chat handler: {e}")
-        return jsonify({'reply': 'Sorry, an internal error occurred on my end. Please try again.', 'sources': []}), 500
+        return jsonify({'error': 'Sorry, an internal error occurred on my end.'}), 500
 
+# --- 6. Main Execution Block ---
 
-# --- 5. Main Execution Block ---
 if __name__ == '__main__':
-    # Final check before starting the server
-    if not all([summarizer, sentiment_analyzer, question_answerer, driver]):
-        print("[!] SERVER SHUTDOWN: A critical component failed to load during initialization.")
-    else:
-        print("[+] All systems nominal. AIONEX is fully operational.")
-        print(f"[*] Access the project at: http://127.0.0.1:5000")
-        try:
-            # Use waitress for a clean and professional server start
-            serve(app, host='0.0.0.0', port=5000)
-        finally:
-            # Ensure the browser driver is properly closed on exit
-            print("\n[*] Shutting down browser engine...")
-            if driver:
-                driver.quit()
-            print("[+] Shutdown complete.")
-
+    print("\n[+] All systems nominal. AIONEX is fully operational.")
+    print(f"[*] Access the project at: http://127.0.0.1:5000")
+    serve(app, host='0.0.0.0', port=5000)
