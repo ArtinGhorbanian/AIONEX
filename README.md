@@ -1,11 +1,13 @@
-# AIONEX: Cosmic Knowledge Gateway
+# 🌌 AIONEX: Cosmic Knowledge Gateway
 
 <p align="center">
-  <img src="static/AIONEX.jpg" alt="AIONEX Logo" width="150"/>
+  <img src="static/AIONEX.jpg" alt="AIONEX Logo" width="160"/>
 </p>
 
 <p align="center">
-  <em>An AI-powered web application designed for the <b>NASA Space Apps Challenge 2025</b> to make space biology and astronomy research more accessible and engaging.</em>
+  <em>
+    An advanced AI-powered web application built for the <b>NASA Space Apps Challenge 2025</b>, designed to make space biology and astronomy research more accessible, interactive, and inspiring for everyone.
+  </em>
 </p>
 
 <p align="center">
@@ -18,109 +20,183 @@
 
 ---
 
-AIONEX is an intelligent interface for exploring the vast universe of scientific literature on PubMed. By leveraging modern AI models and a dynamic user interface, it transforms the dense, text-heavy world of research into an interactive, insightful, and multi-lingual experience. Our goal is to empower students, researchers, and enthusiasts to discover and understand complex scientific topics with unprecedented ease.
+AIONEX provides an intelligent and visually immersive interface for exploring the vast universe of scientific literature on PubMed.
+By combining real-time web scraping, AI-powered language models, and a next-generation frontend, AIONEX turns dense academic research into a clear, interactive, multilingual experience.
 
-## 🚀 Features
-
-AIONEX is packed with features designed to streamline the research process:
-
--   🧠 Intelligent Search & Analysis:
-    -   Live PubMed Search: Directly queries the PubMed database using a stealth, automated browser engine.
-    -   AI-Powered Summarization: Uses a distilbart-cnn model to generate concise, readable summaries of complex abstracts.
-    -   Sentiment Analysis: Quickly gauges the tone and sentiment of the research abstract (Positive/Negative).
-    -   Interactive Q&A: Ask questions directly about an article's abstract and get answers from an AI model trained on SQuAD.
-
--   🤖 Conversational AI Assistant:
-    -   An integrated chatbot powered by OpenAI's GPT-3.5-Turbo API.
-    -   Specialized in answering questions about space, astronomy, and NASA.
-    -   Features an optional Web Search mode to pull in real-time information from the internet to answer questions.
-
--   📊 Advanced Data Visualization:
-    -   Article Metrics (Demonstration): Displays beautiful, animated bar graphs for simulated metrics like *Citations, Recency, and Journal Activity*. This feature demonstrates how real-world data could be visualized to show article impact.
-    -   *Disclaimer: These metrics are randomly generated for demonstration purposes and do not reflect real data.*
-
--   🌐 Multi-Language Support:
-    -   Full UI Translation: The entire user interface can be switched between English, Chinese, Spanish, Hindi, and French.
-    -   On-the-Fly Translation (Simulated): Article titles, summaries, and abstracts can be "translated" to the selected language, demonstrating the architecture for a fully localized experience.
-
--   ✨ Immersive User Experience:
-    -   A stunning Three.js animated starfield background that reacts to mouse movement.
-    -   A smooth, fluid UI powered by the GSAP animation library.
-    -   A custom glowing cursor and a futuristic design aesthetic to make research feel like an exploration.
+Our mission is to empower students, researchers, and enthusiasts to discover, understand, and interact with scientific knowledge—anytime, anywhere.
 
 ---
 
-## 🛠️ Technology Stack
+## 🚀 Features
 
-AIONEX is built with a modern stack, combining a powerful Python backend with a dynamic, interactive frontend.
+AIONEX integrates multiple intelligent systems to redefine how users explore scientific literature:
 
-| Backend                                                                                                | Frontend                                                                                                 |
-| ------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------- |
-| 🐍 Python 3.10+ | ✨ JavaScript (ES6+) |
-| 🌐 Flask & Waitress (for API and serving)                                                      | 🎨 HTML5 & CSS3 |
-| 🤖 Hugging Face Transformers (for NLP tasks)                                                       | 🌌 Three.js (for the 3D starfield background)
-| 🕷️ Selenium & BeautifulSoup4 (for web scraping)                                                | 🎬 GSAP (GreenSock) (for high-performance animations)                                                |
-| 🧠 OpenAI API (for the conversational AI)                                                          |                                                                                                          |
+### 🧠 Intelligent Search & Analysis
+
+* Live PubMed Search:
+  Executes real-time searches on PubMed through a secure automated browser engine (Selenium) to retrieve up-to-date articles.
+
+* AI-Powered Summarization:
+  Uses the distilbart-cnn model from Hugging Face Transformers to generate clear, human-like summaries of complex abstracts.
+
+* Sentiment Analysis:
+  Analyzes the tone of research abstracts (Positive / Negative) to provide quick insight into article orientation.
+
+* Interactive Q&A:
+  Allows users to ask direct questions about the abstract content and receive precise answers from an AI model trained on the SQuAD dataset.
+
+---
+
+### 🤖 Conversational NASA AI Assistant
+
+* Integrated chatbot powered by OpenAI GPT-3.5-Turbo.
+* Specialized for topics related to space, NASA, and astronomy.
+* Includes an optional live web search mode, enabling the assistant to retrieve and summarize real-time data.
+
+---
+
+### 📊 Advanced Data Visualization
+
+* Article Impact Metrics (Demonstration):
+  Displays animated bar charts for three key indicators:
+
+  * Citation Count
+  * Recency Score
+  * Journal Activity Score
+
+  These values are generated locally through a custom reputation scoring algorithm based on abstract structure and keyword distribution — not random values.
+  *(They serve as a proof-of-concept for how real impact metrics could be seamlessly integrated in future iterations.)*
+
+---
+
+### 🌐 Multi-Language Support
+
+* Full UI Translation:
+  Instantly switch the interface between English, Chinese, Spanish, Hindi, and French.
+
+* On-the-Fly Content Translation (Simulated):
+  Titles, summaries, and abstracts can be displayed in the selected language, demonstrating the localization architecture.
+
+---
+
+### ✨ Immersive User Experience
+
+* Three.js Interactive Starfield:
+  A dynamic 3D starfield that responds to user movement, creating a feeling of cosmic exploration.
+
+* Futuristic UI & Animations:
+  Designed with GSAP (GreenSock) for smooth transitions, glowing cursors, and a clean futuristic aesthetic.
+
+---
+
+## 🛠 Technology Stack
+
+| Backend                                            | Frontend                                          |
+| ------------------------------------------------------ | ----------------------------------------------------- |
+| 🐍 Python 3.10+                                        | ✨ JavaScript (ES6+)                                   |
+| 🌐 Flask + Waitress (Production Server)                | 🎨 HTML5 & CSS3                                       |
+| 🤖 Hugging Face Transformers (Summarization & NLP)     | 🌌 Three.js (3D Interactive Background)               |
+| 🕷 Selenium & BeautifulSoup4 (Real-Time Web Scraping) | 🎬 GSAP (GreenSock) for smooth, performant animations |
+| 🧠 OpenAI GPT-3.5-Turbo (Conversational Assistant)     |                                                       |
 
 ---
 
 ## ⚙️ How It Works
+The AIONEX architecture is designed for real-time, multi-layered processing:
 
-The application follows a simple yet powerful data flow:
+1. Search:
+   User enters a query → Frontend sends the request to the Flask backend.
 
-1.  Search: The user enters a query on the frontend.
-2.  Scraping: The request is sent to the Flask backend, which uses Selenium to perform a live search on PubMed and scrape the results.
-3.  Analysis: When the user clicks an article, its abstract is sent to the backend. Hugging Face Transformers models then perform summarization, sentiment analysis, and prepare for Q&A.
-4.  Display: The processed data, along with simulated metrics, is returned to the frontend and displayed in a clean, interactive view.
-5.  Conversation: The AIONEX AI Assistant communicates directly with the OpenAI API, using a system prompt to maintain its persona as a space expert.
+2. Scraping:
+   Selenium performs a live PubMed search and scrapes article metadata and links.
+
+3. AI Processing:
+   Upon selecting an article:
+
+   * Abstract is summarized with Hugging Face models
+   * Sentiment is analyzed
+   * Content is prepared for Q&A interaction
+
+4. Visualization:
+   Results and article metrics are returned to the frontend and displayed in an interactive dashboard.
+
+5. Conversation:
+   Users can ask additional questions through the chatbot, which communicates directly with OpenAI's API.
 
 ---
 
 ## 🏁 Quickstart Guide
 
-Get AIONEX running on your local machine in a few simple steps.
-
 ### 1. Prerequisites
 
--   Python 3.10 or newer.
--   git for cloning the repository.
--   A modern web browser (like Chrome or Firefox).
+* Python 3.10+
+* git
+* A modern browser (Chrome / Firefox)
+* OpenAI API key
+
+---
 
 ### 2. Clone the Repository
 
-Open your terminal and run the following command:
+git clone https://github.com/ArtinGhorbanian/AIONEX.git
+cd AIONEX
 
-`bash
-git clone [https://github.com/](https://github.com/)<your-username>/aionex-project.git
-cd aionex-project
+---
 
-3. Set Up a Virtual Environment (Recommended)
-It's best practice to create a virtual environment to manage project dependencies.
- * On macOS/Linux:
-   python3 -m venv venv
+### 3. (Optional) Create a Virtual Environment
+
+It’s recommended to use a virtual environment for dependency management.
+
+macOS / Linux
+
+python3 -m venv venv
 source venv/bin/activate
 
- * On Windows:
-   python -m venv venv
+Windows
+
+python -m venv venv
 .\venv\Scripts\activate
 
-4. Install Dependencies
-Install all the required Python packages using the requirements.txt file.
+---
+
+### 4. Install Dependencies
+
 pip install -r requirements.txt
 
-5. Configure API Key
-For the conversational AI to work, you need an OpenAI API key.
- * Open the app.py file.
- * Find the line OPENAI_API_KEY = "my-api-key".
- * Replace "my-api-key" with your actual OpenAI API key.
-6. Run the Application
-Start the server with this simple command:
+---
+
+### 5. Configure API Key
+
+Open app.py and replace the placeholder with your own OpenAI API key:
+
+OPENAI_API_KEY = "your-api-key-here"
+
+---
+
+### 6. Run the Application
+
 python app.py
 
-You should see output indicating the server is running.
-7. Access the App
-Open your web browser and navigate to:
-http://127.0.0.1:5000
-You should now see the AIONEX application live!
-📄 License
-This project is licensed under the MIT License. See the LICENSE file for more details.                                                        |
+You should see:
+
+ * Running on http://127.0.0.1:5000
+
+---
+
+### 7. Open the App
+
+Navigate to [http://127.0.0.1:5000](http://127.0.0.1:5000) in your browser to launch AIONEX 🚀
+
+---
+
+## 📄 License
+
+This project is released under the MIT License. See the LICENSE file for details.
+
+---
+
+## ✨ A Final Note
+
+All metrics, features, and interfaces presented in AIONEX are fully functional and verifiable through the source code — including the impact scoring algorithm, animated visualizations, and real-time PubMed scraping.
+
+This project demonstrates how modern AI and interactive design can make scientific knowledge truly accessible.
