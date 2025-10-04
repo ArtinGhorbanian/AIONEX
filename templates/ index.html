@@ -1,8 +1,3 @@
-<!--
-  AIONEX: Cosmic Knowledge Gateway
-  Main HTML file for the Flask application.
-  This file defines the structure of the entire user interface.
--->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -10,22 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AIONEX | Cosmic Knowledge Gateway</title>
     
-    <!-- Google Fonts: Exo 2 for a futuristic feel -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@300;400;500;700&display=swap" rel="stylesheet">
     
-    <!-- Font Awesome for icons -->
     <script src="https://kit.fontawesome.com/c9a7f8c4e4.js" crossorigin="anonymous"></script>
 
-    <!-- Main Stylesheet -->
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
 
-    <!-- =================================================================== -->
-    <!--  1. SPLASH SCREEN & BACKGROUND ELEMENTS                             -->
-    <!-- =================================================================== -->
     <div id="splash-screen">
         <video id="intro-video" muted playsinline preload="auto">
             <source src="{{ url_for('static', filename='nasa.mp4') }}" type="video/mp4">
@@ -33,18 +22,11 @@
         </video>
     </div>
 
-    <!-- The Three.js canvas for the starfield background -->
     <canvas id="bg"></canvas>
 
-    <!-- Custom cursor glow effect -->
     <div id="cursor-glow"></div>
 
 
-    <!-- =================================================================== -->
-    <!--  2. FLOATING UI & ACTION BUTTONS                                    -->
-    <!-- =================================================================== -->
-    
-    <!-- Language selector dropdown -->
     <div id="language-selector-container">
         <i class="fas fa-globe"></i>
         <select id="language-selector">
@@ -57,12 +39,10 @@
         </select>
     </div>
 
-    <!-- Button to open the AI Chat modal -->
     <div id="ai-chat-button" role="button" aria-label="Open AI Chat">
         <img src="{{ url_for('static', filename='generative.png') }}" alt="AI Chat Icon">
     </div>
 
-    <!-- Hamburger icon to toggle the side panel -->
     <div id="hamburger-menu" role="button" aria-label="Open dashboard">
         <span class="line line1"></span>
         <span class="line line2"></span>
@@ -70,34 +50,25 @@
     </div>
 
 
-    <!-- =================================================================== -->
-    <!--  3. SIDE PANEL (DASHBOARD)                                          -->
-    <!-- =================================================================== -->
     <div id="side-panel" role="navigation">
         <div class="panel-header">
-            <!-- data-i18n attribute is a hook for our JavaScript translation function -->
             <h3 data-i18n="dashboardTitle">Dashboard</h3>
             <i id="close-panel-btn" class="fas fa-times" role="button" aria-label="Close dashboard"></i>
         </div>
         
-        <!-- Tabs for navigating panel content -->
         <div class="panel-nav">
             <button class="tab-btn active" data-tab="history" data-i18n="historyTab"><i class="fas fa-history"></i> History</button>
             <button class="tab-btn" data-tab="saves" data-i18n="savesTab"><i class="fas fa-save"></i> Saves</button>
         </div>
         
         <div class="panel-content">
-            <!-- History Tab Content -->
             <div id="history-content" class="panel-tab-content active">
                 <ul id="history-list">
-                    <!-- History items are injected here by JavaScript -->
-                </ul>
+                    </ul>
             </div>
-            <!-- Saved Articles Tab Content -->
             <div id="saves-content" class="panel-tab-content">
                 <ul id="saves-list">
-                    <!-- Saved items are injected here by JavaScript -->
-                </ul>
+                    </ul>
             </div>
         </div>
         
@@ -108,23 +79,17 @@
         </div>
     </div>
     
-    <!-- Overlay for when the side panel is open -->
     <div id="panel-overlay"></div>
 
 
-    <!-- =================================================================== -->
-    <!--  4. AI CHAT MODAL                                                   -->
-    <!-- =================================================================== -->
     <div id="chat-modal" class="hidden">
         <div class="chat-header">
             <h3 data-i18n="chatTitle">AIONEX AI Assistant</h3>
             <button id="chat-close-btn" aria-label="Close Chat">&times;</button>
         </div>
         <div id="chat-messages">
-            <!-- Chat messages appear here -->
-        </div>
+            </div>
         <form id="chat-input-form">
-            <!-- data-i18n-placeholder is used to translate placeholder text -->
             <input type="text" id="chat-input" placeholder="Ask about space and NASA..." autocomplete="off" required data-i18n-placeholder="chatPlaceholder">
             <button type="submit" id="chat-send-btn" aria-label="Send Message">
                 <img src="{{ url_for('static', filename='message.png') }}" alt="Send">
@@ -132,23 +97,17 @@
         </form>
     </div>
 
-    <!-- Overlay for when the chat modal is open -->
     <div id="chat-overlay" class="hidden"></div>
 
 
-    <!-- =================================================================== -->
-    <!--  5. MAIN CONTENT AREA                                               -->
-    <!-- =================================================================== -->
     <div class="container">
         <header id="main-header" role="banner" data-i18n="mainHeader">AIONEX</header>
         
-        <!-- Main search bar -->
         <div id="search-container" role="search">
             <input type="text" id="searchInput" placeholder="Search for articles..." data-i18n-placeholder="searchPlaceholder">
             <button id="searchButton" aria-label="Search"><i class="fas fa-search"></i></button>
         </div>
         
-        <!-- Filter/sort options for search results -->
         <div id="filter-container" class="hidden">
             <label for="sort-select"><i class="fas fa-filter"></i> <span data-i18n="sortByLabel">Sort by:</span></label>
             <select id="sort-select">
@@ -159,13 +118,9 @@
             </select>
         </div>
         
-        <!-- Main area where search results and article summaries are displayed -->
         <main id="content-area" role="main"></main>
     </div>
 
-    <!-- =================================================================== -->
-    <!--  6. WELCOME POPUP                                                   -->
-    <!-- =================================================================== -->
     <div id="welcome-popup" class="hidden">
         <button id="close-popup-btn">&times;</button>
         <div class="popup-header" data-i18n="chatTitle">AIONEX AI Assistant</div>
@@ -173,9 +128,6 @@
         <div class="popup-avatar"></div>
     </div>
 
-    <!-- =================================================================== -->
-    <!--  7. SCRIPT LIBRARIES                                                -->
-    <!-- =================================================================== -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="{{ url_for('static', filename='script.js') }}"></script>
