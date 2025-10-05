@@ -1,35 +1,25 @@
 --extra-index-url https://download.pytorch.org/whl/cpu
 
-# ================================
 # Web Framework & Server
-# ================================
 Flask==3.0.0
 Flask-Cors==4.0.0
 waitress==2.1.2
 
-# ================================
 # Core Utilities
-# ================================
 requests==2.31.0
 beautifulsoup4==4.12.2
 deep-translator==1.11.4
 python-dotenv==1.0.0
 
-# ================================
 # Web Scraping & Automation
-# ================================
 selenium==4.14.0
 webdriver-manager==4.0.1
 googlesearch-python==1.2.3
 
-# ================================
 # NLP & AI (HuggingFace)
-# ================================
 transformers==4.35.0
 tokenizers==0.14.1
 torch==2.5.1
 
-# ================================
 # Math / Scientific
-# ================================
 numpy>=1.24,<2.0
