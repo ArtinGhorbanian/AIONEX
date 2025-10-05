@@ -1,4 +1,5 @@
 --extra-index-url https://download.pytorch.org/whl/cpu
+python-3.11.9
 Flask==3.0.0
 Flask-Cors==4.0.0
 waitress==2.1.2
@@ -13,3 +14,4 @@ transformers==4.35.0
 tokenizers==0.14.1
 torch==2.5.1
 numpy>=1.24,<2.0
+
