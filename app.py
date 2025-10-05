@@ -416,6 +416,6 @@ def api_chat():
 # --- 5. Main Execution Block ---
 
 if __name__ == '__main__':
-    print("[+] All systems nominal. AIONEX is fully operational.")
-    print(f"[*] Access the project at: http://127.0.0.1:5000")
-    serve(app, host='0.0.0.0', port=5000)
+    from waitress import serve
+    port = int(os.environ.get('PORT', 5000))
+    serve(app, host='0.0.0.0', port=port)
