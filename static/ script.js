@@ -9,7 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- 1. SETUP & STATE MANAGEMENT ---
 
     gsap.registerPlugin(); // Initialize GSAP for animations
-    const API_BASE_URL = '/api';
+    const API_BASE_URL = 'http://127.0.0.1:5000/api';
     
     // Application state variables
     let lastResults = []; // Caches the most recent search results for sorting
