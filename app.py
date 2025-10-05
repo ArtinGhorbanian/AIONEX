@@ -34,7 +34,7 @@ from deep_translator import GoogleTranslator
 
 # --- Application Configuration & Initialization ---
 
-OPENAI_API_KEY = "your-api-key"
+OPENAI_API_KEY = "YOUR_API_KEY"
 NCBI_EUTILS = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"
 REQUEST_TIMEOUT = 15
 # Be a good API citizen by identifying your tool.
@@ -63,7 +63,7 @@ try:
     print("[*] Loading NLP models from Hugging Face...")
     # Using with model_lock to ensure thread-safe initialization
     with model_lock:
-        summarizer = pipeline("summarization", model="sshleifer/distilbart-cnn-12-6", from_pt=True)
+        summarizer = pipeline("summarization", model="sshleifer/distilbart-cnn-12-6")
         sentiment_analyzer = pipeline('sentiment-analysis', model="distilbert-base-uncased-finetuned-sst-2-english")
         question_answerer = pipeline('question-answering', model="distilbert-base-cased-distilled-squad")
     print("  [+] All NLP models loaded successfully.")
