@@ -1,24 +1,26 @@
---extra-index-url https://download.pytorch.org/whl/cpu
-# ==============================================================================
-#  AIONEX Project Dependencies (Render-friendly)
-# ==============================================================================
+
+python_version == "3.11.9"
 
 # -- Web Framework & Server --
 Flask==3.0.0
 Flask-Cors==4.0.0
 waitress==2.1.2
 
-# -- Data Scraping & Web Automation --
+# -- Core Utilities --
 requests==2.31.0
 beautifulsoup4==4.12.2
-selenium==4.14.0
-webdriver-manager==4.0.1
-
-# -- NLP & Machine Learning --
-transformers==4.35.0
-torch==2.5.1          # نسخه سازگار با Python 3.12 (CPU wheel)
-
-# -- API Clients & Utilities --
-googlesearch-python==1.2.3
 deep-translator==1.11.4
 python-dotenv==1.0.0
+
+# -- Web Scraping & Automation --
+selenium==4.14.0
+webdriver-manager==4.0.1
+googlesearch-python==1.2.3
+
+# -- NLP & AI (HuggingFace) --
+transformers==4.35.0
+tokenizers==0.14.1       # سازگار با Py3.11
+torch==2.5.1             # CPU wheel از PyTorch hub
+
+# -- Optional / Ensuring compatibility with HuggingFace models --
+numpy>=1.24,<2.0
