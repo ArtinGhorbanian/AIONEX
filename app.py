@@ -42,7 +42,7 @@ hf_logging.set_verbosity_error()
 # --- API Keys & Endpoints ---
 # IMPORTANT: In a real production environment, this key should be loaded securely,
 # for example, from environment variables or a secret management service.
-OPENAI_API_KEY = "your-api-key"
+OPENAI_API_KEY = "api-key"
 
 NCBI_EUTILS_BASE = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"
 REQUEST_TIMEOUT_SECONDS = 15
@@ -434,7 +434,6 @@ def load_nlp_models():
     print("Booting AIONEX backend...")
     print("Loading NLP models from Hugging Face (this may take a moment)...")
     with model_lock:
-        # THE FIX IS HERE: Added `from_pt=True` to all pipeline calls.
         # This explicitly tells Transformers to load the PyTorch weights,
         # resolving the framework mismatch error.
         summarizer = pipeline("summarization", model="sshleifer/distilbart-cnn-12-6", from_pt=True)
@@ -446,7 +445,7 @@ if __name__ == '__main__':
     try:
         load_nlp_models()
         print("\n[OK] AIONEX is fully operational.")
-        print(f" -> Access the application at http://127.0.0.1:5000")
+        print(f" -> Access the application at http://12-7.0.0.1:5000")
         # Use Waitress, a production-quality WSGI server.
         serve(app, host='0.0.0.0', port=5000)
     except Exception as e:
