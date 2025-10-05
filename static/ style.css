@@ -676,4 +676,5 @@ body {
 .metrics-toggle input:checked + .metrics-slider:before {
     transform: translateX(20px);
     background-color: white;
+
 }
