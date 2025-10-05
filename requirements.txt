@@ -1,9 +1,7 @@
+--extra-index-url https://download.pytorch.org/whl/cpu
 # ==============================================================================
 #  AIONEX Project Dependencies (Render-friendly)
 # ==============================================================================
-# Install with:
-#   pip install --upgrade pip && pip install -r requirements.txt
-# ------------------------------------------------------------------------------
 
 # -- Web Framework & Server --
 Flask==3.0.0
@@ -17,9 +15,8 @@ selenium==4.14.0
 webdriver-manager==4.0.1
 
 # -- NLP & Machine Learning --
-# Use HuggingFace Transformers with PyTorch (CPU wheels available on Render)
 transformers==4.35.0
-torch==2.2.2     # CPU build from PyPI
+torch==2.5.1          # نسخه سازگار با Python 3.12 (CPU wheel)
 
 # -- API Clients & Utilities --
 googlesearch-python==1.2.3
