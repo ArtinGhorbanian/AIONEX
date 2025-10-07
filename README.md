@@ -169,7 +169,7 @@ pip install -r requirements.txt
 
 Open app.py and replace the placeholder with your own OpenAI API key:
 
-OPENAI_API_KEY = "your-api-key-here"
+OPENAI_API_KEY = "YOUR_API_KEY"
 
 ---
 
@@ -200,3 +200,4 @@ This project is released under the MIT License. See the LICENSE file for details
 All metrics, features, and interfaces presented in AIONEX are fully functional and verifiable through the source code — including the impact scoring algorithm, animated visualizations, and real-time PubMed scraping.
 
 This project demonstrates how modern AI and interactive design can make scientific knowledge truly accessible.
+
