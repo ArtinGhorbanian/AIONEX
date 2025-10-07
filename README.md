@@ -1,7 +1,7 @@
 # 🌌 AIONEX: Cosmic Knowledge Gateway
 
 <p align="center">
-  <img src="static/AIONEX.jpg" alt="AIONEX Logo" width="160"/>
+  <img src="static/ AIONEX.jpg" alt="AIONEX Logo" width="160"/>
 </p>
 
 <p align="center">
@@ -200,4 +200,5 @@ This project is released under the MIT License. See the LICENSE file for details
 All metrics, features, and interfaces presented in AIONEX are fully functional and verifiable through the source code — including the impact scoring algorithm, animated visualizations, and real-time PubMed scraping.
 
 This project demonstrates how modern AI and interactive design can make scientific knowledge truly accessible.
+
 
