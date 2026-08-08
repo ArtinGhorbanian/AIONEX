@@ -1,0 +1,95 @@
+name: CI
+
+on:
+  push:
+    branches: [main, "aionex/**", "agent/**"]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.12", "3.14"]
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+            requirements.lock
+
+      - name: Install development dependencies
+        run: python -m pip install --disable-pip-version-check -r requirements-dev.txt
+
+      - name: Verify installed dependency graph
+        run: python -m pip check
+
+      - name: Compile source
+        run: python -m compileall -q app.py aionex tests scripts
+
+      - name: Lint Python
+        run: python -m ruff check .
+
+      - name: Check Python formatting
+        run: python -m ruff format --check .
+
+      - name: Run tests
+        env:
+          PYTHON_DOTENV_DISABLED: "1"
+          OPENAI_API_KEY: ""
+          AIONEX_CHAT_ENABLED: "false"
+          AIONEX_TRANSLATION_ENABLED: "false"
+        run: python -m pytest
+
+      - name: Check browser script syntax
+        run: node --check static/script.js
+
+      - name: Scan current tree for secret shapes
+        run: python scripts/secret_scan.py
+
+      - name: Verify no-network startup import
+        env:
+          PYTHON_DOTENV_DISABLED: "1"
+          OPENAI_API_KEY: ""
+          AIONEX_CHAT_ENABLED: "false"
+          AIONEX_TRANSLATION_ENABLED: "false"
+        run: python -c "import app; assert app.app.url_map"
+
+  dependency-audit:
+    name: Locked dependency audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install auditor
+        run: python -m pip install --disable-pip-version-check pip-audit==2.10.1
+
+      - name: Audit every locked production package
+        run: python -m pip_audit -r requirements.lock --no-deps --disable-pip
