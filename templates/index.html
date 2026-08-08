@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="en" dir="ltr" data-theme="system">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="AIONEX helps people discover and understand space-life-science research through PubMed search, concise analysis, and transparent discovery signals.">
+    <meta name="color-scheme" content="light dark">
+    <meta name="theme-color" content="#08111f" media="(prefers-color-scheme: dark)">
+    <meta name="theme-color" content="#edf5ff" media="(prefers-color-scheme: light)">
+    <title>AIONEX | Space life-science discovery</title>
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script defer src="{{ url_for('static', filename='script.js') }}"></script>
+</head>
+<body>
+    <a class="skip-link" href="#main-content" data-i18n="skipLink">Skip to research search</a>
+
+    <svg class="svg-sprite" aria-hidden="true" focusable="false">
+        <symbol id="icon-search" viewBox="0 0 24 24">
+            <circle cx="11" cy="11" r="7"></circle>
+            <path d="m20 20-4-4"></path>
+        </symbol>
+        <symbol id="icon-library" viewBox="0 0 24 24">
+            <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v17H6.5A2.5 2.5 0 0 1 4 17.5z"></path>
+            <path d="M4 17.5A2.5 2.5 0 0 1 6.5 15H20M8 7h7"></path>
+        </symbol>
+        <symbol id="icon-chat" viewBox="0 0 24 24">
+            <path d="M20 15a3 3 0 0 1-3 3H9l-5 3v-5.5A3 3 0 0 1 3 13V7a3 3 0 0 1 3-3h11a3 3 0 0 1 3 3z"></path>
+            <path d="M8 10h.01M12 10h.01M16 10h.01"></path>
+        </symbol>
+        <symbol id="icon-arrow" viewBox="0 0 24 24">
+            <path d="m15 18-6-6 6-6"></path>
+        </symbol>
+        <symbol id="icon-external" viewBox="0 0 24 24">
+            <path d="M14 4h6v6M20 4l-9 9"></path>
+            <path d="M18 13v6a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h6"></path>
+        </symbol>
+        <symbol id="icon-save" viewBox="0 0 24 24">
+            <path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z"></path>
+        </symbol>
+        <symbol id="icon-spark" viewBox="0 0 24 24">
+            <path d="m12 3 1.4 4.6L18 9l-4.6 1.4L12 15l-1.4-4.6L6 9l4.6-1.4z"></path>
+            <path d="m19 15 .7 2.3L22 18l-2.3.7L19 21l-.7-2.3L16 18l2.3-.7z"></path>
+        </symbol>
+        <symbol id="icon-volume" viewBox="0 0 24 24">
+            <path d="M5 10v4h4l5 4V6l-5 4z"></path>
+            <path d="M17 9a4 4 0 0 1 0 6M19 6a8 8 0 0 1 0 12"></path>
+        </symbol>
+        <symbol id="icon-close" viewBox="0 0 24 24">
+            <path d="m6 6 12 12M18 6 6 18"></path>
+        </symbol>
+        <symbol id="icon-trash" viewBox="0 0 24 24">
+            <path d="M4 7h16M9 7V4h6v3M6 7l1 14h10l1-14M10 11v6M14 11v6"></path>
+        </symbol>
+        <symbol id="icon-refresh" viewBox="0 0 24 24">
+            <path d="M20 6v5h-5"></path>
+            <path d="M18.5 15a8 8 0 1 1-.8-8.8L20 8"></path>
+        </symbol>
+        <symbol id="icon-check" viewBox="0 0 24 24">
+            <path d="m5 12 4 4L19 6"></path>
+        </symbol>
+    </svg>
+
+    <div class="cosmic-ambience" aria-hidden="true"></div>
+
+    <header class="app-header">
+        <a class="brand" href="#main-content" aria-label="AIONEX home">
+            <svg class="brand-mark" viewBox="0 0 48 48" aria-hidden="true">
+                <circle cx="24" cy="24" r="21"></circle>
+                <path d="M24 10c4 4 6 9 6 15v8l-6 6-6-6v-8c0-6 2-11 6-15z"></path>
+                <circle cx="24" cy="23" r="3"></circle>
+                <path d="M18 29 13 34l5-1M30 29l5 5-5-1M8 25c7 4 25 4 32-2"></path>
+            </svg>
+            <span class="brand-copy">
+                <strong>AIONEX</strong>
+                <span data-i18n="brandDescriptor">Research discovery</span>
+            </span>
+        </a>
+
+        <div class="header-tools" aria-label="Application controls">
+            <label class="compact-field">
+                <span data-i18n="languageLabel">Language</span>
+                <select id="language-select" autocomplete="off">
+                    <option value="en">English</option>
+                    <option value="zh">中文</option>
+                    <option value="es">Español</option>
+                    <option value="hi">हिन्दी</option>
+                    <option value="fr">Français</option>
+                    <option value="ar">العربية</option>
+                </select>
+            </label>
+
+            <label class="compact-field">
+                <span data-i18n="themeLabel">Theme</span>
+                <select id="theme-select" autocomplete="off">
+                    <option value="system" data-i18n="themeSystem">System</option>
+                    <option value="light" data-i18n="themeLight">Light</option>
+                    <option value="dark" data-i18n="themeDark">Dark</option>
+                </select>
+            </label>
+
+            <button class="button button-secondary header-button" id="library-open" type="button">
+                <svg class="icon" aria-hidden="true"><use href="#icon-library"></use></svg>
+                <span data-i18n="libraryAction">Library</span>
+            </button>
+            <button class="button button-secondary header-button" id="chat-open" type="button">
+                <svg class="icon" aria-hidden="true"><use href="#icon-chat"></use></svg>
+                <span data-i18n="assistantAction">Assistant</span>
+            </button>
+        </div>
+    </header>
+
+    <main id="main-content" tabindex="-1">
+        <section class="hero" aria-labelledby="page-title">
+            <p class="eyebrow"><span class="status-dot" aria-hidden="true"></span><span data-i18n="eyebrow">Space life-science research, made navigable</span></p>
+            <h1 id="page-title" data-i18n="heroTitle">Find the signal in scientific literature.</h1>
+            <p class="hero-copy" data-i18n="heroBody">Search PubMed, open a paper, and move from abstract to concise analysis, grounded questions, and five transparent discovery signals.</p>
+
+            <form class="search-form" id="search-form" novalidate>
+                <label for="search-input" data-i18n="searchLabel">Research topic</label>
+                <div class="search-control">
+                    <input id="search-input" name="query" type="search" maxlength="200" required autocomplete="off" aria-describedby="search-help search-error" data-i18n-placeholder="searchPlaceholder" placeholder="Try “microgravity bone density”">
+                    <button class="button button-primary" id="search-submit" type="submit">
+                        <svg class="icon" aria-hidden="true"><use href="#icon-search"></use></svg>
+                        <span class="button-label" data-i18n="searchAction">Search PubMed</span>
+                    </button>
+                </div>
+                <p class="field-help" id="search-help" data-i18n="searchHelp">Use a condition, organism, experiment, or spaceflight topic.</p>
+                <p class="field-error" id="search-error" role="alert"></p>
+            </form>
+
+            <div class="service-line" id="service-line" role="status" aria-live="polite">
+                <span class="service-indicator" aria-hidden="true"></span>
+                <span id="service-status" data-i18n="serviceChecking">Checking local services…</span>
+            </div>
+        </section>
+
+        <section class="workspace" aria-live="off">
+            <div class="global-status" id="global-status" role="status" aria-live="polite" tabindex="-1"></div>
+
+            <section id="results-section" aria-labelledby="results-title" hidden>
+                <div class="section-heading">
+                    <div>
+                        <p class="section-kicker" data-i18n="resultsKicker">PubMed results</p>
+                        <h2 id="results-title" data-i18n="resultsTitle">Choose a paper to investigate</h2>
+                        <p class="section-note" id="result-count"></p>
+                    </div>
+                    <label class="sort-field" for="sort-select">
+                        <span data-i18n="sortLabel">Sort results</span>
+                        <select id="sort-select">
+                            <option value="relevance" data-i18n="sortRelevance">Best match</option>
+                            <option value="newest" data-i18n="sortNewest">Newest</option>
+                            <option value="oldest" data-i18n="sortOldest">Oldest</option>
+                            <option value="title" data-i18n="sortTitle">Title A–Z</option>
+                        </select>
+                    </label>
+                </div>
+                <ol class="result-list" id="result-list"></ol>
+            </section>
+
+            <section id="article-section" aria-labelledby="article-title" hidden>
+                <nav class="article-nav" aria-label="Article navigation">
+                    <button class="button button-quiet" id="back-to-results" type="button">
+                        <svg class="icon icon-back" aria-hidden="true"><use href="#icon-arrow"></use></svg>
+                        <span data-i18n="backAction">Back to results</span>
+                    </button>
+                    <a class="button button-quiet" id="pubmed-link" href="#" target="_blank" rel="noopener noreferrer">
+                        <span data-i18n="sourceAction">Open on PubMed</span>
+                        <svg class="icon" aria-hidden="true"><use href="#icon-external"></use></svg>
+                    </a>
+                </nav>
+
+                <article class="article-card">
+                    <header class="article-header">
+                        <div>
+                            <p class="section-kicker" data-i18n="articleKicker">Research brief</p>
+                            <h2 id="article-title"></h2>
+                            <p class="article-meta" id="article-meta"></p>
+                        </div>
+                        <button class="button button-secondary" id="save-article" type="button">
+                            <svg class="icon" aria-hidden="true"><use href="#icon-save"></use></svg>
+                            <span id="save-article-label" data-i18n="saveAction">Save article</span>
+                        </button>
+                    </header>
+
+                    <div class="article-tools" id="translation-tools" hidden>
+                        <p id="translation-note" data-i18n="translationNote">Article text is shown in its source language.</p>
+                        <button class="button button-secondary" id="translate-article" type="button">
+                            <svg class="icon" aria-hidden="true"><use href="#icon-refresh"></use></svg>
+                            <span id="translate-label" data-i18n="translateAction">Translate article</span>
+                        </button>
+                    </div>
+
+                    <div class="article-grid">
+                        <div class="article-primary">
+                            <section class="content-panel" aria-labelledby="summary-title">
+                                <div class="panel-heading">
+                                    <div>
+                                        <p class="panel-kicker" data-i18n="analysisKicker">Transparent extractive analysis</p>
+                                        <h3 id="summary-title" data-i18n="summaryTitle">Concise summary</h3>
+                                    </div>
+                                    <button class="button button-quiet" id="read-summary" type="button">
+                                        <svg class="icon" aria-hidden="true"><use href="#icon-volume"></use></svg>
+                                        <span data-i18n="readAction">Read aloud</span>
+                                    </button>
+                                </div>
+                                <p class="analysis-meta" id="summary-meta"></p>
+                                <p class="long-copy" id="article-summary"></p>
+                                <p class="analysis-note" id="analysis-note" hidden></p>
+                            </section>
+
+                            <section class="content-panel" aria-labelledby="question-title">
+                                <p class="panel-kicker" data-i18n="questionKicker">Grounded in this abstract</p>
+                                <h3 id="question-title" data-i18n="questionTitle">Ask a focused question</h3>
+                                <form class="question-form" id="question-form" novalidate>
+                                    <label for="question-input" data-i18n="questionLabel">Question about the abstract</label>
+                                    <textarea id="question-input" rows="3" maxlength="500" required aria-describedby="question-help question-error" data-i18n-placeholder="questionPlaceholder" placeholder="What changed under microgravity?"></textarea>
+                                    <p class="field-help" id="question-help" data-i18n="questionHelp">Answers are extracted from the displayed source abstract.</p>
+                                    <p class="field-error" id="question-error" role="alert"></p>
+                                    <button class="button button-primary" id="question-submit" type="submit">
+                                        <svg class="icon" aria-hidden="true"><use href="#icon-spark"></use></svg>
+                                        <span data-i18n="questionAction">Find an answer</span>
+                                    </button>
+                                </form>
+                                <div class="answer-box" id="answer-box" role="status" aria-live="polite" hidden>
+                                    <h4 data-i18n="answerTitle">Answer from the abstract</h4>
+                                    <p id="answer-text"></p>
+                                    <small id="answer-meta"></small>
+                                </div>
+                            </section>
+
+                            <details class="content-panel abstract-panel" open>
+                                <summary data-i18n="abstractTitle">Source abstract</summary>
+                                <p class="long-copy" id="article-abstract"></p>
+                            </details>
+                        </div>
+
+                        <aside class="signals-panel" aria-labelledby="signals-title">
+                            <p class="panel-kicker" data-i18n="signalsKicker">Five discovery signals</p>
+                            <h3 id="signals-title" data-i18n="signalsTitle">Context at a glance</h3>
+                            <p class="signals-explainer" data-i18n="signalsHelp">These transparent proxies support discovery. They do not measure scientific quality or truth.</p>
+                            <div id="signals-status" role="status" aria-live="polite"></div>
+                            <dl class="signal-list" id="signal-list"></dl>
+                            <div class="signal-disclosure" id="signal-disclosure" hidden>
+                                <h4 data-i18n="methodologyTitle">Methodology</h4>
+                                <p id="signals-methodology"></p>
+                                <h4 data-i18n="limitationsTitle">Limitations</h4>
+                                <p id="signals-limitations"></p>
+                            </div>
+                        </aside>
+                    </div>
+                </article>
+            </section>
+        </section>
+    </main>
+
+    <footer class="app-footer">
+        <p><strong>AIONEX</strong> <span data-i18n="footerText">— an accessible interface for exploring public scientific literature.</span></p>
+        <p data-i18n="footerCaveat">Analysis and discovery signals are assistive outputs, not medical or scientific advice.</p>
+    </footer>
+
+    <dialog class="app-dialog library-dialog" id="library-dialog" aria-labelledby="library-title">
+        <div class="dialog-shell">
+            <header class="dialog-header">
+                <div>
+                    <p class="section-kicker" data-i18n="libraryKicker">Stored on this device</p>
+                    <h2 id="library-title" data-i18n="libraryTitle">Your research library</h2>
+                </div>
+                <form method="dialog">
+                    <button class="button button-quiet" type="submit">
+                        <svg class="icon" aria-hidden="true"><use href="#icon-close"></use></svg>
+                        <span data-i18n="closeAction">Close</span>
+                    </button>
+                </form>
+            </header>
+            <div class="library-grid">
+                <section aria-labelledby="history-title">
+                    <div class="library-section-heading">
+                        <h3 id="history-title" data-i18n="historyTitle">Recent searches</h3>
+                        <button class="text-button danger-text" id="clear-history" type="button" data-i18n="clearHistoryAction">Clear history</button>
+                    </div>
+                    <ul class="library-list" id="history-list"></ul>
+                </section>
+                <section aria-labelledby="saves-title">
+                    <h3 id="saves-title" data-i18n="savesTitle">Saved articles</h3>
+                    <ul class="library-list" id="saves-list"></ul>
+                </section>
+            </div>
+        </div>
+    </dialog>
+
+    <dialog class="app-dialog chat-dialog" id="chat-dialog" aria-labelledby="chat-title">
+        <div class="dialog-shell chat-shell">
+            <header class="dialog-header">
+                <div>
+                    <p class="section-kicker" data-i18n="chatKicker">Optional network service</p>
+                    <h2 id="chat-title" data-i18n="chatTitle">Space research assistant</h2>
+                </div>
+                <form method="dialog">
+                    <button class="button button-quiet" type="submit">
+                        <svg class="icon" aria-hidden="true"><use href="#icon-close"></use></svg>
+                        <span data-i18n="closeAction">Close</span>
+                    </button>
+                </form>
+            </header>
+            <p class="dialog-note" data-i18n="chatNotice">Messages may be sent to the configured AI provider. Do not include confidential information.</p>
+            <div class="chat-log" id="chat-log" role="log" aria-live="polite" aria-relevant="additions text"></div>
+            <form class="chat-form" id="chat-form" novalidate>
+                <label for="chat-input" data-i18n="chatLabel">Message</label>
+                <textarea id="chat-input" rows="3" maxlength="1500" required aria-describedby="chat-help chat-error" data-i18n-placeholder="chatPlaceholder" placeholder="Ask about space biology or NASA research"></textarea>
+                <p class="field-help" id="chat-help" data-i18n="chatHelp">The assistant is optional; PubMed discovery works independently.</p>
+                <p class="field-error" id="chat-error" role="alert"></p>
+                <button class="button button-primary" id="chat-submit" type="submit">
+                    <svg class="icon" aria-hidden="true"><use href="#icon-chat"></use></svg>
+                    <span data-i18n="sendAction">Send message</span>
+                </button>
+            </form>
+        </div>
+    </dialog>
+
+    <div class="toast-region" id="toast-region" role="status" aria-live="polite" aria-atomic="true"></div>
+
+    <template id="loading-template">
+        <div class="loading-state" aria-hidden="true">
+            <div class="skeleton skeleton-line skeleton-short"></div>
+            <div class="skeleton skeleton-line"></div>
+            <div class="skeleton skeleton-card"></div>
+            <div class="skeleton skeleton-card"></div>
+            <div class="skeleton skeleton-card"></div>
+        </div>
+    </template>
+</body>
+</html>

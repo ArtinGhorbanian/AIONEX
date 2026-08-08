@@ -1,0 +1,51 @@
+name: Bug report
+description: Report a reproducible product or engineering defect.
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not include credentials, private research text, personal data, or unredacted logs. Report security issues through the private process in SECURITY.md.
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      placeholder: "1.0.0 or commit SHA"
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - PubMed search
+        - Article analysis or Q&A
+        - Discovery signals
+        - Translation or assistant
+        - Interface or accessibility
+        - Installation, tests, or CI
+        - Documentation or rights
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: Provide minimal steps, expected behavior, and actual behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      placeholder: "OS, Python, browser, deployment mode, optional feature flags (never values)"
+    validations:
+      required: true
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety check
+      options:
+        - label: I removed secrets, personal data, private research content, and sensitive logs.
+          required: true

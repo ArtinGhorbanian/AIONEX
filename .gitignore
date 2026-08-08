@@ -1,0 +1,56 @@
+# Local secrets and environment overrides
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+credentials*.json
+service-account*.json
+secrets.*
+private.*
+
+# Private audit and provenance material
+.aionex-private/
+
+# Python environments and caches
+.venv/
+.venv-*/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Build and runtime output
+build/
+dist/
+*.egg-info/
+logs/
+uploads/
+tmp/
+temp/
+cache/
+*.sqlite
+*.sqlite3
+*.db
+
+# Local tooling
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Original competition-era assets retained locally pending provenance review
+SB_publication_PMC.csv
+static/AIONEX.jpg
+static/copy.png
+static/download.png
+static/generative.png
+static/message.png
+static/nasa.mp4
+static/speaker-filled-audio-tool.png
+static/userlogo.jpg

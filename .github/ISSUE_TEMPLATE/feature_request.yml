@@ -1,0 +1,26 @@
+name: Feature request
+description: Propose a focused, evidence-backed improvement.
+title: "[Feature]: "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Researcher problem
+      description: What user problem exists, and who experiences it?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed outcome
+      description: Describe behavior and acceptance criteria, not only implementation.
+    validations:
+      required: true
+  - type: textarea
+    id: trust
+    attributes:
+      label: Trust, accessibility, and rights impact
+      description: Cover data sent, scientific claims, keyboard/RTL/motion behavior, external assets, licenses, and AI assistance.
+    validations:
+      required: true
